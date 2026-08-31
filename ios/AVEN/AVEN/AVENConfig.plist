@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Cloudflare backend for TikTok OAuth -->
+    <key>BackendURL</key>
+    <string>https://muddy-fire-2876.philipp-gaerner.workers.dev</string>
+</dict>
+</plist>

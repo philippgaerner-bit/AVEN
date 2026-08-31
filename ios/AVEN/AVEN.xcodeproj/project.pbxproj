@@ -1,0 +1,542 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		22FE42F43034B7DE00D70AB1 /* AVENSubscription 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22FE42F33034B7DE00D70AB1 /* AVENSubscription 2.swift */; };
+		AA000001 /* AVENApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000001 /* AVENApp.swift */; };
+		AA000002 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000002 /* AppContainer.swift */; };
+		AA000003 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000003 /* DesignTokens.swift */; };
+		AA000004 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000004 /* Components.swift */; };
+		AA000005 /* HomeDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000005 /* HomeDomain.swift */; };
+		AA000006 /* AVENAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000006 /* AVENAPIClient.swift */; };
+		AA000007 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000007 /* HomeView.swift */; };
+		AA000008 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000008 /* HomeViewModel.swift */; };
+		AA000009 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000009 /* RootView.swift */; };
+		AA000010 /* AnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000010 /* AnalyticsView.swift */; };
+		AA000011 /* ActionPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000011 /* ActionPlanView.swift */; };
+		AA000012 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000012 /* ProfileView.swift */; };
+		AA000013 /* NewScanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000013 /* NewScanSheet.swift */; };
+		AA000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB000014 /* Assets.xcassets */; };
+		AA000015 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB000015 /* Preview Assets.xcassets */; };
+		AA000016 /* APIEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000016 /* APIEnvironment.swift */; };
+		AA000017 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000017 /* PaywallView.swift */; };
+		AA000018 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000018 /* AnalyticsService.swift */; };
+		AA000019 /* AIVideoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000019 /* AIVideoService.swift */; };
+		AA000020 /* AIVideoCreatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000020 /* AIVideoCreatorView.swift */; };
+		AA000021 /* CreationMenuSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000021 /* CreationMenuSheet.swift */; };
+		AA000022 /* AVENMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000022 /* AVENMotion.swift */; };
+		AA000023 /* TikTokOAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000023 /* TikTokOAuthService.swift */; };
+		AA000024 /* AnimatedAVENTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000024 /* AnimatedAVENTitle.swift */; };
+		AA000025 /* AVENDemoVideoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000025 /* AVENDemoVideoService.swift */; };
+		AA000026 /* VideoCreditsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000026 /* VideoCreditsService.swift */; };
+		AA000027 /* ApplyChangesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000027 /* ApplyChangesService.swift */; };
+		AA000028 /* TikTokAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000028 /* TikTokAccountView.swift */; };
+		AA000029 /* HomeDetailSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000029 /* HomeDetailSheets.swift */; };
+		AA000030 /* ProfileImageAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000030 /* ProfileImageAnalyzer.swift */; };
+		AA000031 /* AVENOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000031 /* AVENOnboardingView.swift */; };
+		AA000032 /* AVENAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000032 /* AVENAuthService.swift */; };
+		AA000033 /* AVENBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000033 /* AVENBackend.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		22FE42F33034B7DE00D70AB1 /* AVENSubscription 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AVENSubscription 2.swift"; sourceTree = "<group>"; };
+		AB000001 /* AVENApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVENApp.swift; sourceTree = "<group>"; };
+		AB000002 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		AB000003 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
+		AB000004 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		AB000005 /* HomeDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDomain.swift; sourceTree = "<group>"; };
+		AB000006 /* AVENAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVENAPIClient.swift; sourceTree = "<group>"; };
+		AB000007 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		AB000008 /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
+		AB000009 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		AB000010 /* AnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsView.swift; sourceTree = "<group>"; };
+		AB000011 /* ActionPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionPlanView.swift; sourceTree = "<group>"; };
+		AB000012 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		AB000013 /* NewScanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewScanSheet.swift; sourceTree = "<group>"; };
+		AB000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AB000015 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		AB000016 /* APIEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIEnvironment.swift; sourceTree = "<group>"; };
+		AB000017 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		AB000018 /* AnalyticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsService.swift; sourceTree = "<group>"; };
+		AB000019 /* AIVideoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIVideoService.swift; sourceTree = "<group>"; };
+		AB000020 /* AIVideoCreatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIVideoCreatorView.swift; sourceTree = "<group>"; };
+		AB000021 /* CreationMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreationMenuSheet.swift; sourceTree = "<group>"; };
+		AB000022 /* AVENMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVENMotion.swift; sourceTree = "<group>"; };
+		AB000023 /* TikTokOAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TikTokOAuthService.swift; sourceTree = "<group>"; };
+		AB000024 /* AnimatedAVENTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedAVENTitle.swift; sourceTree = "<group>"; };
+		AB000025 /* AVENDemoVideoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVENDemoVideoService.swift; sourceTree = "<group>"; };
+		AB000026 /* VideoCreditsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCreditsService.swift; sourceTree = "<group>"; };
+		AB000027 /* ApplyChangesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyChangesService.swift; sourceTree = "<group>"; };
+		AB000028 /* TikTokAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TikTokAccountView.swift; sourceTree = "<group>"; };
+		AB000029 /* HomeDetailSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDetailSheets.swift; sourceTree = "<group>"; };
+		AB000030 /* ProfileImageAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImageAnalyzer.swift; sourceTree = "<group>"; };
+		AB000031 /* AVENOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVENOnboardingView.swift; sourceTree = "<group>"; };
+		AB000032 /* AVENAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVENAuthService.swift; sourceTree = "<group>"; };
+		AB000033 /* AVENBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVENBackend.swift; sourceTree = "<group>"; };
+		AB000099 /* AVEN.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AVEN.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		AC000001 = {
+			isa = PBXGroup;
+			children = (
+				AC000010 /* AVEN */,
+				AC000090 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AC000010 /* AVEN */ = {
+			isa = PBXGroup;
+			children = (
+				AC000011 /* App */,
+				AC000020 /* Core */,
+				AC000030 /* Features */,
+				AC000060 /* Navigation */,
+				AB000014 /* Assets.xcassets */,
+				AB000015 /* Preview Assets.xcassets */,
+			);
+			path = AVEN;
+			sourceTree = "<group>";
+		};
+		AC000011 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				AB000001 /* AVENApp.swift */,
+				AB000002 /* AppContainer.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		AC000020 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				AC000021 /* DesignSystem */,
+				AC000022 /* Models */,
+				AC000023 /* Network */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		AC000021 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				AB000003 /* DesignTokens.swift */,
+				AB000004 /* Components.swift */,
+				AB000022 /* AVENMotion.swift */,
+				AB000024 /* AnimatedAVENTitle.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		AC000022 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				AB000005 /* HomeDomain.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		AC000023 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				AB000006 /* AVENAPIClient.swift */,
+				AB000016 /* APIEnvironment.swift */,
+				AB000018 /* AnalyticsService.swift */,
+				AB000019 /* AIVideoService.swift */,
+				AB000025 /* AVENDemoVideoService.swift */,
+				AB000033 /* AVENBackend.swift */,
+			);
+			path = Network;
+			sourceTree = "<group>";
+		};
+		AC000030 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				AC000031 /* Home */,
+				AC000032 /* Analytics */,
+				AC000033 /* ActionPlan */,
+				AC000034 /* Profile */,
+				AC000035 /* NewScan */,
+				AC000036 /* Paywall */,
+				AC000037 /* AIVideo */,
+				AC000038 /* Services */,
+				AC000039 /* Onboarding */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		AC000031 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				AB000007 /* HomeView.swift */,
+				AB000008 /* HomeViewModel.swift */,
+				AB000029 /* HomeDetailSheets.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		AC000032 /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				AB000010 /* AnalyticsView.swift */,
+			);
+			path = Analytics;
+			sourceTree = "<group>";
+		};
+		AC000033 /* ActionPlan */ = {
+			isa = PBXGroup;
+			children = (
+				AB000011 /* ActionPlanView.swift */,
+			);
+			path = ActionPlan;
+			sourceTree = "<group>";
+		};
+		AC000034 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				AB000012 /* ProfileView.swift */,
+				AB000028 /* TikTokAccountView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+		AC000035 /* NewScan */ = {
+			isa = PBXGroup;
+			children = (
+				AB000013 /* NewScanSheet.swift */,
+				AB000021 /* CreationMenuSheet.swift */,
+			);
+			path = NewScan;
+			sourceTree = "<group>";
+		};
+		AC000036 /* Paywall */ = {
+			isa = PBXGroup;
+			children = (
+				AB000017 /* PaywallView.swift */,
+			);
+			path = Paywall;
+			sourceTree = "<group>";
+		};
+		AC000037 /* AIVideo */ = {
+			isa = PBXGroup;
+			children = (
+				AB000020 /* AIVideoCreatorView.swift */,
+			);
+			path = AIVideo;
+			sourceTree = "<group>";
+		};
+		AC000038 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				AB000023 /* TikTokOAuthService.swift */,
+				22FE42F33034B7DE00D70AB1 /* AVENSubscription 2.swift */,
+				AB000026 /* VideoCreditsService.swift */,
+				AB000027 /* ApplyChangesService.swift */,
+				AB000030 /* ProfileImageAnalyzer.swift */,
+				AB000032 /* AVENAuthService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		AC000039 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				AB000031 /* AVENOnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		AC000060 /* Navigation */ = {
+			isa = PBXGroup;
+			children = (
+				AB000009 /* RootView.swift */,
+			);
+			path = Navigation;
+			sourceTree = "<group>";
+		};
+		AC000090 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AB000099 /* AVEN.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AD000001 /* AVEN */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AE000010 /* Build configuration list for PBXNativeTarget "AVEN" */;
+			buildPhases = (
+				AF000001 /* Sources */,
+				AF000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AVEN;
+			productName = AVEN;
+			productReference = AB000099 /* AVEN.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AD000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					AD000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = AE000001 /* Build configuration list for PBXProject "AVEN" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = de;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				de,
+				en,
+				Base,
+			);
+			mainGroup = AC000001;
+			productRefGroup = AC000090 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AD000001 /* AVEN */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AF000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA000014 /* Assets.xcassets in Resources */,
+				AA000015 /* Preview Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AF000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA000001 /* AVENApp.swift in Sources */,
+				AA000002 /* AppContainer.swift in Sources */,
+				AA000003 /* DesignTokens.swift in Sources */,
+				AA000004 /* Components.swift in Sources */,
+				AA000005 /* HomeDomain.swift in Sources */,
+				AA000006 /* AVENAPIClient.swift in Sources */,
+				AA000007 /* HomeView.swift in Sources */,
+				AA000008 /* HomeViewModel.swift in Sources */,
+				AA000009 /* RootView.swift in Sources */,
+				AA000010 /* AnalyticsView.swift in Sources */,
+				22FE42F43034B7DE00D70AB1 /* AVENSubscription 2.swift in Sources */,
+				AA000011 /* ActionPlanView.swift in Sources */,
+				AA000012 /* ProfileView.swift in Sources */,
+				AA000028 /* TikTokAccountView.swift in Sources */,
+				AA000029 /* HomeDetailSheets.swift in Sources */,
+				AA000030 /* ProfileImageAnalyzer.swift in Sources */,
+				AA000013 /* NewScanSheet.swift in Sources */,
+				AA000016 /* APIEnvironment.swift in Sources */,
+				AA000017 /* PaywallView.swift in Sources */,
+				AA000018 /* AnalyticsService.swift in Sources */,
+				AA000019 /* AIVideoService.swift in Sources */,
+				AA000020 /* AIVideoCreatorView.swift in Sources */,
+				AA000021 /* CreationMenuSheet.swift in Sources */,
+				AA000022 /* AVENMotion.swift in Sources */,
+				AA000024 /* AnimatedAVENTitle.swift in Sources */,
+				AA000025 /* AVENDemoVideoService.swift in Sources */,
+				AA000023 /* TikTokOAuthService.swift in Sources */,
+				AA000026 /* VideoCreditsService.swift in Sources */,
+				AA000027 /* ApplyChangesService.swift in Sources */,
+				AA000028 /* TikTokAccountView.swift in Sources */,
+				AA000029 /* HomeDetailSheets.swift in Sources */,
+				AA000030 /* ProfileImageAnalyzer.swift in Sources */,
+				AA000031 /* AVENOnboardingView.swift in Sources */,
+				AA000032 /* AVENAuthService.swift in Sources */,
+				AA000033 /* AVENBackend.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		AE000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AE000003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AE000004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"AVEN/Preview Content\"";
+				DEVELOPMENT_TEAM = 9B5DZX6ZZQ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "AVEN möchte generierte Videos in deiner Fotobibliothek speichern.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.philippgaerner.aven;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		AE000005 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"AVEN/Preview Content\"";
+				DEVELOPMENT_TEAM = 9B5DZX6ZZQ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "AVEN möchte generierte Videos in deiner Fotobibliothek speichern.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.philippgaerner.aven;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AE000001 /* Build configuration list for PBXProject "AVEN" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE000002 /* Debug */,
+				AE000003 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AE000010 /* Build configuration list for PBXNativeTarget "AVEN" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE000004 /* Debug */,
+				AE000005 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AD000000 /* Project object */;
+}

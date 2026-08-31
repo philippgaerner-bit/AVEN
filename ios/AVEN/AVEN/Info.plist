@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Allow AVEN to check whether TikTok is installed and open it for OAuth -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>tiktok</string>
+        <string>snssdk1233</string>
+        <string>snssdk1180</string>
+    </array>
+</dict>
+</plist>
