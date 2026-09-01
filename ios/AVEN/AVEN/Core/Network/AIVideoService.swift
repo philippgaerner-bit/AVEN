@@ -110,81 +110,44 @@ protocol AIVideoServiceProtocol {
     func generateConcept(request: AIVideoRequest) async throws -> AIVideoConcept
 }
 
-final class StubAIVideoService: AIVideoServiceProtocol {
+final class LiveAIVideoService: AIVideoServiceProtocol {
     func generateConcept(request: AIVideoRequest) async throws -> AIVideoConcept {
-        let topic   = request.topic.isEmpty ? "Content erstellen" : request.topic
+        let topic = request.topic.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !topic.isEmpty else { throw AVENBackendError.validation("Bitte gib zuerst ein Thema für dein Video ein.") }
         let seconds = request.customSeconds > 0 ? request.customSeconds : request.duration.seconds
-        let platform = request.platform.rawValue
-        let style    = request.style.rawValue
-
-        // ── Call backend /video-blueprint endpoint ────────────────────────────
-        let backendReq = VideoBlueprintRequest(
-            topic:    topic,
-            platform: platform,
-            style:    style,
-            seconds:  seconds
-        )
-
-        var parsedHook    = "\(topic) – das musst du wissen"
-        var parsedScript  = "In diesem Video dreht sich alles um \(topic)."
-        var parsedScenes: [AIVideoConceptScene] = []
-        var parsedCTA     = "Folge mir für mehr Tipps zu \(topic)."
-        var parsedCaption = "\(topic) | Follow fuer mehr"
-        var parsedTags    = [topic.lowercased().components(separatedBy: .whitespaces).joined(), platform.lowercased()]
-
-        do {
-            let resp = try await AVENBackend.generateBlueprint(backendReq)
-            if !resp.hook.isEmpty    { parsedHook    = resp.hook }
-            if !resp.script.isEmpty  { parsedScript  = resp.script }
-            if !resp.cta.isEmpty     { parsedCTA     = resp.cta }
-            if !resp.caption.isEmpty { parsedCaption = resp.caption }
-            if !resp.hashtags.isEmpty { parsedTags   = resp.hashtags }
-            if !resp.scenes.isEmpty {
-                parsedScenes = resp.scenes.enumerated().map { idx, s in
-                    AIVideoConceptScene(
-                        number:      idx + 1,
-                        label:       s["label"]       ?? "Szene \(idx+1)",
-                        description: s["description"] ?? "",
-                        duration:    s["duration"]    ?? "\(seconds / max(1, resp.scenes.count)) Sek"
-                    )
-                }
-            }
-        } catch {
-            // Backend unavailable — build a generic fallback without AVEN branding
-            let sceneCount = seconds <= 15 ? 3 : seconds <= 30 ? 4 : 5
-            let labels = ["Hook", "Kern", "Details", "Beispiel", "CTA"]
-            parsedScenes = (0..<sceneCount).map { i in
-                AIVideoConceptScene(
-                    number:      i + 1,
-                    label:       labels[min(i, labels.count - 1)],
-                    description: i == 0 ? parsedHook : i == sceneCount-1 ? parsedCTA : "\(topic) – Teil \(i)",
-                    duration:    "\(seconds / sceneCount) Sek"
-                )
-            }
+        let resp = try await AVENBackend.generateBlueprint(VideoBlueprintRequest(
+            topic: topic,
+            platform: request.platform.rawValue,
+            style: request.style.rawValue,
+            seconds: seconds
+        ))
+        guard !resp.hook.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !resp.script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !resp.cta.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !resp.scenes.isEmpty else {
+            throw AVENBackendError.validation("Der AVEN-Server hat keinen vollständigen Video-Blueprint geliefert.")
         }
-
-        if parsedScenes.isEmpty {
-            let sc = seconds <= 15 ? 3 : 4
-            parsedScenes = (0..<sc).map { i in
-                AIVideoConceptScene(
-                    number: i+1,
-                    label:  i == 0 ? "Hook" : i == sc-1 ? "CTA" : "Inhalt",
-                    description: i == 0 ? parsedHook : parsedCTA,
-                    duration: "\(seconds/sc) Sek"
-                )
-            }
+        let scenes = resp.scenes.enumerated().compactMap { idx, raw -> AIVideoConceptScene? in
+            let description = (raw["description"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !description.isEmpty else { return nil }
+            return AIVideoConceptScene(
+                number: idx + 1,
+                label: raw["label"] ?? "Szene \(idx + 1)",
+                description: description,
+                duration: raw["duration"] ?? ""
+            )
         }
-
+        guard !scenes.isEmpty else { throw AVENBackendError.validation("Der Video-Blueprint enthält keine verwertbaren Szenen.") }
         return AIVideoConcept(
-            platform:    request.platform,
-            style:       request.style,
-            duration:    request.duration,
-            hook:        parsedHook,
-            script:      parsedScript,
-            caption:     parsedCaption,
-            cta:         parsedCTA,
-            scenes:      parsedScenes,
-            hashtags:    parsedTags,
+            platform: request.platform,
+            style: request.style,
+            duration: request.duration,
+            hook: resp.hook,
+            script: resp.script,
+            caption: resp.caption,
+            cta: resp.cta,
+            scenes: scenes,
+            hashtags: resp.hashtags,
             generatedAt: Date()
         )
     }

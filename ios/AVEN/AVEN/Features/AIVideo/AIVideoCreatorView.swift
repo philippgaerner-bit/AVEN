@@ -482,7 +482,7 @@ final class AIVideoCreatorViewModel: ObservableObject {
         return min(90, max(1, raw))
     }
 
-    private let service:      AIVideoServiceProtocol = StubAIVideoService()
+    private let service:      AIVideoServiceProtocol = LiveAIVideoService()
     private let renderService: AVENVideoRenderServiceProtocol = BackendVideoRenderService()
 
     func generate() async {

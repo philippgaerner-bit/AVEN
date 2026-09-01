@@ -1,14 +1,54 @@
 import SwiftUI
+import UIKit
 
 // ─── AVEN Design Tokens ───────────────────────────────────────────────────────
-// Light premium aesthetic: off-white / marble-white + purple/blue accents
+// Premium adaptive palette. Light uses soft marble whites; Dark uses near-black
+// surfaces so the purple/blue AVEN accents stay crisp without looking neon-heavy.
+
+enum AVENAppearance: String, CaseIterable, Identifiable {
+    case light
+    case dark
+    case system
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .light:  return "Hell"
+        case .dark:   return "Dunkel"
+        case .system: return "System"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .light:  return "sun.max.fill"
+        case .dark:   return "moon.fill"
+        case .system: return "iphone"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .light:  return .light
+        case .dark:   return .dark
+        case .system: return nil
+        }
+    }
+}
 
 enum AVENColor {
+    private static func adaptive(light: String, dark: String) -> Color {
+        Color(uiColor: UIColor { traits in
+            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+
     // ── Backgrounds ───────────────────────────────────────────────────────────
-    static let backgroundPrimary   = Color(hex: "#F7F7FA")  // premium soft marble-white
-    static let backgroundSecondary = Color(hex: "#EDEEF4")  // slightly deeper
-    static let backgroundCard      = Color(hex: "#FFFFFF")  // pure white card
-    static let backgroundElevated  = Color(hex: "#F8F9FC")  // slightly off-white elevated
+    static let backgroundPrimary   = adaptive(light: "#F7F7FA", dark: "#050507")
+    static let backgroundSecondary = adaptive(light: "#EDEEF4", dark: "#0B0B10")
+    static let backgroundCard      = adaptive(light: "#FFFFFF", dark: "#111116")
+    static let backgroundElevated  = adaptive(light: "#F8F9FC", dark: "#17171E")
 
     // ── Accents ───────────────────────────────────────────────────────────────
     static let accentPurple        = Color(hex: "#7B4FFF")
@@ -18,18 +58,16 @@ enum AVENColor {
     static let accentGradientEnd   = Color(hex: "#4F8FFF")
 
     // ── Text ──────────────────────────────────────────────────────────────────
-    static let textPrimary         = Color(hex: "#0D0E1A")  // deep navy-black
-    static let textSecondary       = Color(hex: "#5C5E72")  // muted slate
-    static let textMuted           = Color(hex: "#9395A8")  // light slate
-    static let textPositive        = Color(hex: "#16A34A")  // green
-    static let textNegative        = Color(hex: "#DC2626")  // red
+    static let textPrimary         = adaptive(light: "#0D0E1A", dark: "#F7F7FB")
+    static let textSecondary       = adaptive(light: "#5C5E72", dark: "#B5B6C4")
+    static let textMuted           = adaptive(light: "#9395A8", dark: "#77798A")
+    static let textPositive        = Color(hex: "#16A34A")
+    static let textNegative        = Color(hex: "#DC2626")
 
-    // ── Borders ───────────────────────────────────────────────────────────────
-    static let borderSubtle        = Color(hex: "#0D0E1A").opacity(0.07)
+    // ── Borders / shadows ─────────────────────────────────────────────────────
+    static let borderSubtle        = adaptive(light: "#E4E4EB", dark: "#25252E")
     static let borderAccent        = Color(hex: "#7B4FFF").opacity(0.25)
-
-    // ── Shadow ────────────────────────────────────────────────────────────────
-    static let cardShadow          = Color(hex: "#0D0E1A").opacity(0.06)
+    static let cardShadow          = adaptive(light: "#0D0E1A", dark: "#000000").opacity(0.08)
 }
 
 enum AVENSpacing {
@@ -61,18 +99,24 @@ enum AVENFont {
     }
 }
 
-// ─── Hex color extension ──────────────────────────────────────────────────────
+// ─── Hex color helpers ────────────────────────────────────────────────────────
 
-extension Color {
-    init(hex: String) {
+extension UIColor {
+    convenience init(hex: String) {
         let h = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         var rgb: UInt64 = 0
         Scanner(string: h).scanHexInt64(&rgb)
         let hasAlpha = h.count == 8
-        let a = hasAlpha ? Double((rgb & 0xFF000000) >> 24) / 255 : 1.0
-        let r = Double((rgb & (hasAlpha ? 0x00FF0000 : 0xFF0000)) >> (hasAlpha ? 16 : 16)) / 255
-        let g = Double((rgb & (hasAlpha ? 0x0000FF00 : 0x00FF00)) >> 8) / 255
-        let b = Double( rgb & (hasAlpha ? 0x000000FF : 0x0000FF)) / 255
-        self.init(red: r, green: g, blue: b, opacity: a)
+        let a = hasAlpha ? CGFloat((rgb & 0xFF000000) >> 24) / 255 : 1.0
+        let r = CGFloat((rgb & (hasAlpha ? 0x00FF0000 : 0xFF0000)) >> 16) / 255
+        let g = CGFloat((rgb & (hasAlpha ? 0x0000FF00 : 0x00FF00)) >> 8) / 255
+        let b = CGFloat(rgb & (hasAlpha ? 0x000000FF : 0x0000FF)) / 255
+        self.init(red: r, green: g, blue: b, alpha: a)
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        self.init(uiColor: UIColor(hex: hex))
     }
 }

@@ -19,35 +19,20 @@ struct AnalyticsView: View {
         ZStack {
             AVENColor.backgroundPrimary.ignoresSafeArea()
             VStack(spacing: 0) {
-                // ── Fixed header + tabs (not scrollable) ──────────────────────
                 VStack(spacing: 0) {
                     AHeader()
                     ATabs(selected: $selectedTab)
                 }
 
-                // ── Scrollable content ────────────────────────────────────────
                 if vm.isLoading {
                     Spacer()
                     ProgressView().tint(AVENColor.accentPurple)
                     Spacer()
                 } else if let data = vm.data {
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 10) {
-                            AStandSection(data: data, vm: vm)
-                                .cardAppear(delay: 0.04)
-                            AScoreSection(data: data, vm: vm)
-                                .cardAppear(delay: 0.08)
-                            AInsightsCard()
-                                .cardAppear(delay: 0.12)
-                            ANextActionsSection(container: container)
-                                .cardAppear(delay: 0.16)
-                            Color.clear.frame(height: 12)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                    }
+                    tabContent(data: data)
+                        .id(selectedTab)
+                        .transition(.opacity)
                 } else {
-                    // First load / no data yet
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 10) {
                             ANoDataCard()
@@ -60,9 +45,46 @@ struct AnalyticsView: View {
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.18), value: selectedTab)
         .task { await vm.load(period: .week) }
         .onChange(of: container.selectedTab) { _, newTab in
-            if newTab == .analytics { Task { await vm.load(period: vm.selectedPeriod) } }
+            if newTab == .analytics {
+                Task { await vm.load(period: vm.selectedPeriod) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tabContent(data: AnalyticsPeriodData) -> some View {
+        switch selectedTab {
+        case .uebersicht:
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 10) {
+                    AStandSection(data: data, vm: vm)
+                        .cardAppear(delay: 0.02)
+                    AScoreSection(data: data, vm: vm)
+                        .cardAppear(delay: 0.05)
+                    AInsightsCard(data: data)
+                        .cardAppear(delay: 0.08)
+                    ANextActionsSection(container: container)
+                        .cardAppear(delay: 0.11)
+                    Color.clear.frame(height: 12)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+            }
+
+        case .profil:
+            AProfileAnalyticsTab(data: data)
+
+        case .content:
+            AContentAnalyticsTab(data: data, container: container)
+
+        case .engagement:
+            AEngagementAnalyticsTab(data: data)
+
+        case .audience:
+            AAudienceAnalyticsTab(container: container)
         }
     }
 }
@@ -75,8 +97,8 @@ private extension View {
             .background(AVENColor.backgroundCard)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color(hex: "#0D0E1A").opacity(0.055), lineWidth: 0.5))
-            .shadow(color: Color(hex: "#0D0E1A").opacity(0.032), radius: 3, x: 0, y: 1)
+                .strokeBorder(AVENColor.borderSubtle, lineWidth: 0.5))
+            .shadow(color: AVENColor.cardShadow, radius: 3, x: 0, y: 1)
     }
 }
 
@@ -142,6 +164,416 @@ private struct ATabs: View {
     }
 }
 
+// ─── Tab-specific content ───────────────────────────────────────────────────
+
+private struct AProfileAnalyticsTab: View {
+    let data: AnalyticsPeriodData
+
+    private var record: AnalysisRecord? { AVENAnalysisStore.load() }
+    private var dimensions: [AnalysisDimension] {
+        record?.dimensions.filter { $0.score >= 0 } ?? []
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 10) {
+                HStack(spacing: 14) {
+                    AScoreRing(score: data.currentScore)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Profilanalyse")
+                            .font(AVENFont.body(11))
+                            .foregroundColor(AVENColor.textMuted)
+                        Text(scoreStatus)
+                            .font(AVENFont.display(18))
+                            .foregroundStyle(LinearGradient(
+                                colors: [AVENColor.accentPurple, AVENColor.accentBlue],
+                                startPoint: .leading, endPoint: .trailing))
+                        Text(record?.status ?? "Basierend auf deiner letzten Analyse.")
+                            .font(AVENFont.body(11))
+                            .foregroundColor(AVENColor.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                }
+                .padding(14)
+                .aCard()
+
+                if dimensions.isEmpty {
+                    AAnalyticsEmptyCard(
+                        icon: "person.crop.circle.badge.questionmark",
+                        title: "Noch keine Profildetails",
+                        text: "Starte eine Profilanalyse, damit AVEN hier die einzelnen Profilbereiche auswerten kann."
+                    )
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Dein Score im Detail")
+                            .font(AVENFont.body(13, weight: .semibold))
+                            .foregroundColor(AVENColor.textPrimary)
+                            .padding(.bottom, 6)
+
+                        ForEach(Array(dimensions.enumerated()), id: \.offset) { index, dim in
+                            ADimensionRow(dimension: dim)
+                            if index < dimensions.count - 1 {
+                                Divider().opacity(0.45)
+                            }
+                        }
+                    }
+                    .padding(14)
+                    .aCard()
+                }
+
+                if let record, !record.strengths.isEmpty || !record.weaknesses.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        AAnalysisListCard(
+                            title: "Stärken",
+                            icon: "checkmark.circle.fill",
+                            items: Array(record.strengths.prefix(3)),
+                            positive: true
+                        )
+                        AAnalysisListCard(
+                            title: "Potenziale",
+                            icon: "arrow.up.right.circle.fill",
+                            items: Array(record.weaknesses.prefix(3)),
+                            positive: false
+                        )
+                    }
+                }
+
+                Color.clear.frame(height: 12)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+        }
+    }
+
+    private var scoreStatus: String {
+        data.currentScore >= 80 ? "Stark" : data.currentScore >= 65 ? "Gut" : "Ausbaufähig"
+    }
+}
+
+private struct AContentAnalyticsTab: View {
+    let data: AnalyticsPeriodData
+    let container: AppContainer
+
+    private var record: AnalysisRecord? { AVENAnalysisStore.load() }
+    private var contentDimensions: [AnalysisDimension] {
+        let terms = ["content", "video", "hook", "cta", "tempo", "pacing"]
+        return (record?.dimensions ?? []).filter { dim in
+            dim.score >= 0 && terms.contains { dim.name.lowercased().contains($0) }
+        }
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    ADataTile(icon: "play.rectangle.fill", label: "Videos", value: container.connectedTikTokAccount.map { "\($0.videoCount)" } ?? "–")
+                    ADataTile(icon: "eye.fill", label: "Aufrufe", value: data.views > 0 ? formatK(data.views) : "–")
+                }
+
+                if contentDimensions.isEmpty {
+                    AAnalyticsEmptyCard(
+                        icon: "play.square.stack",
+                        title: "Noch keine Content-Analyse",
+                        text: "Sobald eine Analyse Content-Signale enthält oder du ein Video analysierst, erscheinen die Ergebnisse hier getrennt vom Profil."
+                    )
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Content-Signale")
+                            .font(AVENFont.body(13, weight: .semibold))
+                            .foregroundColor(AVENColor.textPrimary)
+                            .padding(.bottom, 6)
+                        ForEach(Array(contentDimensions.enumerated()), id: \.offset) { index, dim in
+                            ADimensionRow(dimension: dim)
+                            if index < contentDimensions.count - 1 { Divider().opacity(0.45) }
+                        }
+                    }
+                    .padding(14)
+                    .aCard()
+                }
+
+                Button { container.showCreationMenu = true } label: {
+                    AAnalyticsActionRow(
+                        icon: "video.fill",
+                        title: "Video analysieren",
+                        subtitle: "Hook, Inhalt, CTA und Tempo prüfen"
+                    )
+                }
+                .buttonStyle(PressButtonStyle())
+
+                Color.clear.frame(height: 12)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+        }
+    }
+}
+
+private struct AEngagementAnalyticsTab: View {
+    let data: AnalyticsPeriodData
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    ADataTile(icon: "heart.fill", label: "Likes", value: data.likes > 0 ? formatK(data.likes) : "–")
+                    ADataTile(icon: "chart.bar.fill", label: "Engagement", value: data.engagement > 0 ? String(format: "%.1f%%", data.engagement) : "–")
+                }
+
+                AAnalyticsEmptyCard(
+                    icon: "bubble.left.and.bubble.right.fill",
+                    title: "Engagement-Daten",
+                    text: data.engagement > 0
+                        ? "Hier siehst du die aktuell verfügbaren Interaktionsdaten deines Accounts."
+                        : "AVEN zeigt hier keine erfundene Engagement-Rate. Sobald TikTok echte Interaktionsdaten liefert, wird dieser Bereich automatisch erweitert."
+                )
+
+                if let record = AVENAnalysisStore.load(), !record.weaknesses.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Relevante Potenziale aus deiner Analyse")
+                            .font(AVENFont.body(13, weight: .semibold))
+                            .foregroundColor(AVENColor.textPrimary)
+                        ForEach(Array(record.weaknesses.prefix(3)), id: \.self) { item in
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(AVENColor.accentPurple)
+                                    .padding(.top, 2)
+                                Text(item)
+                                    .font(AVENFont.body(11))
+                                    .foregroundColor(AVENColor.textSecondary)
+                            }
+                        }
+                    }
+                    .padding(14)
+                    .aCard()
+                }
+
+                Color.clear.frame(height: 12)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+        }
+    }
+}
+
+private struct AAudienceAnalyticsTab: View {
+    let container: AppContainer
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 10) {
+                if let account = container.connectedTikTokAccount {
+                    VStack(spacing: 12) {
+                        HStack(spacing: 10) {
+                            ZStack {
+                                Circle()
+                                    .fill(AVENColor.accentPurple.opacity(0.10))
+                                    .frame(width: 42, height: 42)
+                                if let avatar = account.avatarUrl, let url = URL(string: avatar) {
+                                    AsyncImage(url: url) { phase in
+                                        if case .success(let image) = phase {
+                                            image.resizable().scaledToFill().frame(width: 42, height: 42).clipShape(Circle())
+                                        } else {
+                                            Image(systemName: "person.2.fill").foregroundColor(AVENColor.accentPurple)
+                                        }
+                                    }
+                                } else {
+                                    Image(systemName: "person.2.fill").foregroundColor(AVENColor.accentPurple)
+                                }
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(account.username)
+                                    .font(AVENFont.body(13, weight: .semibold))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                Text("TikTok verbunden")
+                                    .font(AVENFont.body(10))
+                                    .foregroundColor(AVENColor.textPositive)
+                            }
+                            Spacer()
+                        }
+
+                        HStack(spacing: 8) {
+                            ADataTile(icon: "person.2.fill", label: "Follower", value: formatK(account.followers))
+                            ADataTile(icon: "person.badge.plus", label: "Following", value: formatK(account.following))
+                        }
+                    }
+                    .padding(14)
+                    .aCard()
+
+                    AAnalyticsEmptyCard(
+                        icon: "person.3.sequence.fill",
+                        title: "Audience Insights",
+                        text: "Follower und Following stammen aus dem verbundenen TikTok-Account. Demografie und Aktivitätszeiten erscheinen erst, wenn TikTok diese Daten tatsächlich bereitstellt."
+                    )
+                } else {
+                    AAnalyticsEmptyCard(
+                        icon: "link.badge.plus",
+                        title: "TikTok verbinden",
+                        text: "Verbinde deinen TikTok-Account, damit AVEN hier echte Audience-Daten anzeigen kann."
+                    )
+                }
+
+                Color.clear.frame(height: 12)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+        }
+    }
+}
+
+private struct ADimensionRow: View {
+    let dimension: AnalysisDimension
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(dimension.name)
+                    .font(AVENFont.body(12, weight: .medium))
+                    .foregroundColor(AVENColor.textPrimary)
+                Spacer()
+                Text("\(dimension.score)/100")
+                    .font(AVENFont.body(10, weight: .semibold))
+                    .foregroundColor(AVENColor.accentPurple)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(AVENColor.accentPurple.opacity(0.08))
+                    Capsule()
+                        .fill(LinearGradient(
+                            colors: [AVENColor.accentPurple, AVENColor.accentBlue],
+                            startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * CGFloat(max(0, min(100, dimension.score))) / 100)
+                }
+            }
+            .frame(height: 5)
+            if !dimension.tip.isEmpty {
+                Text(dimension.tip)
+                    .font(AVENFont.body(10))
+                    .foregroundColor(AVENColor.textSecondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+private struct AAnalysisListCard: View {
+    let title: String
+    let icon: String
+    let items: [String]
+    let positive: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundColor(positive ? AVENColor.textPositive : AVENColor.accentPurple)
+                Text(title)
+                    .font(AVENFont.body(12, weight: .semibold))
+                    .foregroundColor(AVENColor.textPrimary)
+            }
+            if items.isEmpty {
+                Text("Noch keine Daten")
+                    .font(AVENFont.body(10))
+                    .foregroundColor(AVENColor.textMuted)
+            } else {
+                ForEach(items, id: \.self) { item in
+                    Text("• \(item)")
+                        .font(AVENFont.body(10))
+                        .foregroundColor(AVENColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+        .aCard()
+    }
+}
+
+private struct ADataTile: View {
+    let icon: String
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 13))
+                .foregroundColor(AVENColor.accentPurple)
+            Text(label)
+                .font(AVENFont.body(10))
+                .foregroundColor(AVENColor.textMuted)
+            Text(value)
+                .font(AVENFont.display(18))
+                .foregroundColor(AVENColor.textPrimary)
+        }
+        .padding(13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .aCard()
+    }
+}
+
+private struct AAnalyticsEmptyCard: View {
+    let icon: String
+    let title: String
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(AVENColor.accentPurple.opacity(0.09))
+                    .frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                    .foregroundColor(AVENColor.accentPurple)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(AVENFont.body(13, weight: .semibold))
+                    .foregroundColor(AVENColor.textPrimary)
+                Text(text)
+                    .font(AVENFont.body(11))
+                    .foregroundColor(AVENColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .aCard()
+    }
+}
+
+private struct AAnalyticsActionRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9).fill(AVENColor.accentPurple.opacity(0.09))
+                    .frame(width: 36, height: 36)
+                Image(systemName: icon).font(.system(size: 15)).foregroundColor(AVENColor.accentPurple)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(AVENFont.body(12, weight: .semibold)).foregroundColor(AVENColor.textPrimary)
+                Text(subtitle).font(AVENFont.body(10)).foregroundColor(AVENColor.textSecondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(AVENColor.accentPurple)
+        }
+        .padding(13)
+        .aCard()
+    }
+}
+
 // ─── 1. Dein aktueller Stand ──────────────────────────────────────────────────
 
 private struct AStandSection: View {
@@ -166,7 +598,7 @@ private struct AStandSection: View {
                     .font(AVENFont.body(10))
                     .foregroundColor(AVENColor.textMuted)
                     .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(Color(hex: "#0D0E1A").opacity(0.05))
+                    .background(AVENColor.borderSubtle)
                     .clipShape(Capsule())
             }
 
@@ -331,7 +763,7 @@ private struct AScoreSection: View {
                         // Empty chart state
                         ZStack {
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(hex: "#0D0E1A").opacity(0.03))
+                                .fill(AVENColor.borderSubtle)
                             VStack(spacing: 4) {
                                 Image(systemName: "chart.line.uptrend.xyaxis")
                                     .font(.system(size: 18))
@@ -352,7 +784,7 @@ private struct AScoreSection: View {
             .padding(.bottom, 10)
 
             // Bottom badge
-            Divider().background(Color(hex: "#0D0E1A").opacity(0.05))
+            Divider().background(AVENColor.borderSubtle)
             HStack(spacing: 5) {
                 let pos = data.scoreChange >= 0
                 Image(systemName: pos ? "arrow.up.right" : "arrow.down.right")
@@ -393,7 +825,7 @@ private struct AScoreRing: View {
         ZStack {
             Circle()
                 .trim(from: 0.15, to: 0.85)
-                .stroke(Color(hex: "#0D0E1A").opacity(0.07),
+                .stroke(AVENColor.borderSubtle,
                         style: StrokeStyle(lineWidth: lw, lineCap: .round))
                 .rotationEffect(.degrees(90))
             Circle()
@@ -422,14 +854,20 @@ private struct AScoreRing: View {
 // ─── 3. Wichtigste Erkenntnisse ───────────────────────────────────────────────
 
 private struct AInsightsCard: View {
-    private let rows: [(String, String, String)] = [
-        ("play.rectangle.fill", "Kurze Videos performen am besten",
-         "Videos unter 30 Sek. erreichen 2× mehr Aufrufe."),
-        ("clock.fill", "Beste Posting-Zeit: 18:00 – 21:00 Uhr",
-         "Poste abends für mehr organische Reichweite."),
-        ("arrow.up.right.circle.fill", "Stetiges Wachstum",
-         "Dein Account wächst konstant – bleibe am Ball."),
-    ]
+    let data: AnalyticsPeriodData
+
+    private var rows: [(String, String, String)] {
+        var result: [(String, String, String)] = [
+            ("sparkles", "Aktuelle Erkenntnis", data.insight)
+        ]
+        if data.strongestMetric != "Noch keine Daten" {
+            result.append(("checkmark.circle.fill", "Stärkster Bereich", data.strongestMetric))
+        }
+        if data.weakestMetric != "Noch keine Daten" {
+            result.append(("arrow.up.right.circle.fill", "Größtes Potenzial", data.weakestMetric))
+        }
+        return result
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -438,9 +876,9 @@ private struct AInsightsCard: View {
                     .font(AVENFont.body(13, weight: .semibold))
                     .foregroundColor(AVENColor.textPrimary)
                 Spacer()
-                Text("Alle Insights")
-                    .font(AVENFont.body(11))
-                    .foregroundColor(AVENColor.accentPurple)
+                Text("Aus echten Analysen")
+                    .font(AVENFont.body(10))
+                    .foregroundColor(AVENColor.textMuted)
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 10)
 
@@ -461,17 +899,15 @@ private struct AInsightsCard: View {
                         Text(rows[i].2)
                             .font(AVENFont.body(10))
                             .foregroundColor(AVENColor.textSecondary)
+                            .lineLimit(2)
                     }
                     Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(AVENColor.textMuted)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
 
                 if i < rows.count - 1 {
-                    Color(hex: "#0D0E1A").opacity(0.05).frame(height: 0.5)
+                    AVENColor.borderSubtle.frame(height: 0.5)
                         .padding(.horizontal, 14)
                 }
             }

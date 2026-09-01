@@ -5,5 +5,8 @@
     <!-- Cloudflare backend for TikTok OAuth -->
     <key>BackendURL</key>
     <string>https://muddy-fire-2876.philipp-gaerner.workers.dev</string>
+    <!-- Dedicated AI/OpenAI worker; keep TikTok OAuth on BackendURL above. -->
+    <key>AIBackendURL</key>
+    <string>https://avencreator.app</string>
 </dict>
 </plist>

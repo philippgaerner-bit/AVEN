@@ -1,859 +1,1300 @@
 import SwiftUI
 
-// ─── AVEN Premium Onboarding — 6 visually unique screens ─────────────────────
-// onComplete() fires ONLY on screen 6 "AVEN starten".
-// RootView: @AppStorage("aven.hasCompletedOnboarding") gates entry.
+// AVEN Premium Onboarding
+// Six polished steps with page-specific motion, interactive goal setup and
+// appearance selection. Motion respects Reduce Motion.
 
 struct AVENOnboardingView: View {
     let onComplete: () -> Void
+
     @State private var page = 0
-    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var selectedGoal: OBGoal = .followers
+    @State private var target = ""
+    @State private var deadline = "3 Monate"
+    @FocusState private var targetFocused: Bool
+    @AppStorage("aven.appearance") private var appearanceRaw = AVENAppearance.light.rawValue
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var pageVisible = false
+    @State private var ambientPulse = false
+    @State private var analysisProgress: CGFloat = 0
+    @State private var planProgress: CGFloat = 0
+    @State private var completionVisible = false
+
+    private let pageCount = 6
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            AVENColor.backgroundPrimary.ignoresSafeArea()
+
             VStack(spacing: 0) {
-                // Swipeable pages
+                topBar
+
                 TabView(selection: $page) {
-                    OBHeroScreen().tag(0)
-                    OBScanScreen().tag(1)
-                    OBScoreScreen().tag(2)
-                    OBActionScreen().tag(3)
-                    OBGrowthScreen().tag(4)
-                    OBReadyScreen(onComplete: onComplete).tag(5)
+                    welcomePage.tag(0)
+                    analysisPage.tag(1)
+                    actionPlanPage.tag(2)
+                    goalPage.tag(3)
+                    toolsPage.tag(4)
+                    appearancePage.tag(5)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(reduce ? .none : .easeInOut(duration: 0.38), value: page)
 
-                // Dot indicator
-                HStack(spacing: 8) {
-                    ForEach(0..<6, id: \.self) { i in
-                        Capsule()
-                            .fill(i == page
-                                  ? AnyShapeStyle(LinearGradient(
-                                        colors: [Color(hex:"#9B5CFF"), Color(hex:"#4F8FFF")],
-                                        startPoint: .leading, endPoint: .trailing))
-                                  : AnyShapeStyle(Color(hex:"#222234")))
-                            .frame(width: i == page ? 22 : 8, height: 8)
-                            .animation(.spring(response: 0.4), value: page)
-                    }
-                }
-                .padding(.bottom, 14)
-
-                // Next button — hidden on last page (has its own)
-                if page < 5 {
-                    OBButton("Weiter") {
-                        withAnimation(.easeInOut(duration: 0.38)) { page += 1 }
-                    }
-                }
+                bottomControls
             }
         }
-    }
-}
-
-// ─── Shared button ────────────────────────────────────────────────────────────
-
-struct OBButton: View {
-    let title: String
-    let action: () -> Void
-    @State private var pressing = false
-    init(_ title: String, action: @escaping () -> Void) {
-        self.title = title; self.action = action
-    }
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity).padding(.vertical, 17)
-                .background(LinearGradient(
-                    colors: [Color(hex:"#7B4FFF"), Color(hex:"#4F8FFF")],
-                    startPoint: .leading, endPoint: .trailing))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .scaleEffect(pressing ? 0.97 : 1.0)
-                .animation(.spring(response: 0.25), value: pressing)
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 24).padding(.bottom, 44)
-        .simultaneousGesture(DragGesture(minimumDistance: 0)
-            .onChanged { _ in pressing = true }
-            .onEnded   { _ in pressing = false })
-    }
-}
-
-// ─── Glow orb helper ─────────────────────────────────────────────────────────
-
-private struct GlowOrb: View {
-    let color: Color
-    let size: CGFloat
-    var opacity: Double = 0.25
-    var body: some View {
-        Circle()
-            .fill(RadialGradient(colors: [color.opacity(opacity), .clear],
-                                 center: .center, startRadius: 0, endRadius: size/2))
-            .frame(width: size, height: size)
-            .blur(radius: 20)
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SCREEN 1 — AVEN HERO
-// Large gradient "AVEN" text + pulsing glow orbs + sparkle particles
-// ══════════════════════════════════════════════════════════════════════════════
-
-struct OBHeroScreen: View {
-    @State private var on = false
-    @State private var breathe = false
-    // 6 fixed sparkle positions (x,y as fraction of 300px canvas)
-    private let sparkPos: [(CGFloat,CGFloat)] =
-        [(0.15,0.20),(0.80,0.15),(0.10,0.65),(0.85,0.60),(0.50,0.10),(0.30,0.80)]
-    @State private var sparkAlpha: [Double] = Array(repeating: 0, count: 6)
-    @State private var sparkTask: Task<Void,Never>? = nil
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            ZStack {
-                // Background glow orbs — Purple / Blue / Cyan
-                GlowOrb(color: Color(hex:"#9B5CFF"), size: 200, opacity: breathe ? 0.28 : 0.08)
-                    .offset(x: -40, y: -30)
-                    .animation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true), value: breathe)
-                GlowOrb(color: Color(hex:"#4F8FFF"), size: 160, opacity: breathe ? 0.20 : 0.06)
-                    .offset(x: 50, y: 20)
-                    .animation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true), value: breathe)
-                GlowOrb(color: Color(hex:"#00D4FF"), size: 120, opacity: breathe ? 0.15 : 0.04)
-                    .offset(x: 10, y: 50)
-                    .animation(.easeInOut(duration: 3.1).repeatForever(autoreverses: true), value: breathe)
-
-                // Sparkles — Purple / Blue / Cyan
-                ForEach(0..<sparkPos.count, id: \.self) { i in
-                    Image(systemName: i % 3 == 0 ? "sparkle" : i % 3 == 1 ? "star.fill" : "circle.fill")
-                        .font(.system(size: i % 3 == 0 ? 13 : i % 3 == 1 ? 9 : 5))
-                        .foregroundColor(i % 3 == 0 ? Color(hex:"#9B5CFF") : i % 3 == 1 ? Color(hex:"#4F8FFF") : Color(hex:"#00D4FF"))
-                        .opacity(sparkAlpha[i])
-                        .position(x: sparkPos[i].0 * 300, y: sparkPos[i].1 * 300)
-                }
-
-                // AVEN text — the actual hero
-                VStack(spacing: 10) {
-                    Text("AVEN")
-                        .font(.system(size: 76, weight: .black, design: .rounded))
-                        .foregroundStyle(LinearGradient(
-                            colors: [Color(hex:"#C07AFF"), Color(hex:"#5B9FFF"), Color(hex:"#00D4FF")],
-                            startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .shadow(color: Color(hex:"#9B5CFF").opacity(0.5), radius: 24)
-                        .shadow(color: Color(hex:"#00D4FF").opacity(0.2), radius: 36)
-                        .scaleEffect(on ? (breathe ? 1.015 : 1.0) : 0.82)
-                        .opacity(on ? 1 : 0)
-                        .animation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.05), value: on)
-                        .animation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true), value: breathe)
-
-                    // Premium product label
-                    HStack(spacing: 5) {
-                        Rectangle()
-                            .fill(LinearGradient(
-                                colors: [Color(hex:"#9B5CFF").opacity(0), Color(hex:"#9B5CFF")],
-                                startPoint: .leading, endPoint: .trailing))
-                            .frame(width: 22, height: 1)
-                        Text("TikTok Profile Intelligence")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(LinearGradient(
-                                colors: [Color(hex:"#A07AFF"), Color(hex:"#5B9FFF"), Color(hex:"#00D4FF")],
-                                startPoint: .leading, endPoint: .trailing))
-                            .tracking(2.5)
-                        Rectangle()
-                            .fill(LinearGradient(
-                                colors: [Color(hex:"#00D4FF"), Color(hex:"#00D4FF").opacity(0)],
-                                startPoint: .leading, endPoint: .trailing))
-                            .frame(width: 22, height: 1)
-                    }
-                    .opacity(on ? 1 : 0)
-                    .animation(.easeOut(duration: 0.5).delay(0.28), value: on)
-                }
-            }
-            .frame(width: 300, height: 300)
-
-            // Headline + body — improved hierarchy
-            VStack(spacing: 8) {
-                Text("Willkommen bei AVEN")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundColor(.white).multilineTextAlignment(.center)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 14)
-                    .animation(.easeOut(duration: 0.5).delay(0.4), value: on)
-
-                Text("Dein Profil. Dein Wachstum. Dein nächstes Level.")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(LinearGradient(
-                        colors: [Color(hex:"#A07AFF"), Color(hex:"#5B9FFF"), Color(hex:"#00D4FF")],
-                        startPoint: .leading, endPoint: .trailing))
-                    .multilineTextAlignment(.center)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 8)
-                    .animation(.easeOut(duration: 0.5).delay(0.52), value: on)
-
-                Spacer().frame(height: 6)
-
-                Text("AVEN analysiert dein TikTok-Profil und zeigt dir Schritt für Schritt, wie du es verbesserst.")
-                    .font(.system(size: 15))
-                    .foregroundColor(Color(hex:"#8E8EA0"))
-                    .multilineTextAlignment(.center).lineSpacing(4)
-                    .padding(.horizontal, 32)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 8)
-                    .animation(.easeOut(duration: 0.5).delay(0.62), value: on)
-            }
-            Spacer()
-        }
+        .onTapGesture { targetFocused = false }
         .onAppear {
-            on = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { breathe = true }
-            sparkTask = Task {
-                for i in 0..<sparkPos.count {
-                    try? await Task.sleep(nanoseconds: UInt64((0.5 + Double(i)*0.15) * 1e9))
-                    guard !Task.isCancelled else { return }
-                    withAnimation(.easeIn(duration: 0.3)) { sparkAlpha[i] = Double.random(in: 0.5...1.0) }
+            startAmbientMotion()
+            preparePage(page)
+        }
+        .onChange(of: page) { _, newPage in
+            targetFocused = false
+            preparePage(newPage)
+        }
+    }
+
+    private var topBar: some View {
+        HStack {
+            if page > 0 {
+                Button {
+                    move(to: page - 1)
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(AVENColor.textSecondary)
+                        .frame(width: 38, height: 38)
+                        .background(AVENColor.backgroundCard)
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(AVENColor.borderSubtle, lineWidth: 0.7))
                 }
-                // Slow pulse loop
-                while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 1_200_000_000)
-                    guard !Task.isCancelled else { return }
-                    for i in 0..<sparkAlpha.count {
-                        withAnimation(.easeInOut(duration: 0.9)) {
-                            sparkAlpha[i] = Double.random(in: 0.15...0.85)
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+            } else {
+                Color.clear.frame(width: 38, height: 38)
+            }
+
+            Spacer()
+
+            if page > 0 {
+                OBWordmark(compact: true)
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
+            } else {
+                Color.clear.frame(width: 110, height: 38)
+            }
+
+            Spacer()
+
+            Text("\(page + 1)/\(pageCount)")
+                .font(AVENFont.body(12, weight: .semibold))
+                .foregroundColor(AVENColor.textMuted)
+                .frame(width: 38, height: 38)
+                .contentTransition(.numericText())
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
+        .animation(reduceMotion ? .none : .spring(response: 0.38, dampingFraction: 0.82), value: page)
+    }
+
+    private var bottomControls: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 6) {
+                ForEach(0..<pageCount, id: \.self) { index in
+                    Capsule()
+                        .fill(index == page ? AVENColor.accentPurple : AVENColor.borderSubtle)
+                        .frame(width: index == page ? 26 : 7, height: 7)
+                        .scaleEffect(index == page && ambientPulse && !reduceMotion ? 1.04 : 1)
+                        .animation(reduceMotion ? .none : .spring(response: 0.4, dampingFraction: 0.76), value: page)
+                }
+            }
+
+            Button {
+                targetFocused = false
+                if page == pageCount - 1 {
+                    persistGoal()
+                    onComplete()
+                } else {
+                    move(to: page + 1)
+                }
+            } label: {
+                HStack {
+                    Spacer()
+                    Text(page == pageCount - 1 ? "AVEN starten" : "Weiter")
+                        .font(AVENFont.body(16, weight: .semibold))
+                        .contentTransition(.opacity)
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .offset(x: ambientPulse && !reduceMotion ? 2 : 0)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 18)
+                .frame(height: 52)
+                .background(
+                    LinearGradient(
+                        colors: [AVENColor.accentPurple, AVENColor.accentBlue],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .shadow(color: AVENColor.accentPurple.opacity(ambientPulse && !reduceMotion ? 0.25 : 0.14), radius: ambientPulse && !reduceMotion ? 16 : 10, y: 6)
+            }
+            .buttonStyle(PressButtonStyle())
+            .disabled(page == 3 && target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .opacity(page == 3 && target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
+            .animation(reduceMotion ? .none : .easeInOut(duration: 0.22), value: page)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 16)
+    }
+
+    private func move(to newPage: Int) {
+        targetFocused = false
+        if reduceMotion {
+            page = newPage
+        } else {
+            withAnimation(.spring(response: 0.52, dampingFraction: 0.88)) {
+                page = newPage
+            }
+        }
+    }
+
+    private func startAmbientMotion() {
+        guard !reduceMotion else {
+            ambientPulse = false
+            return
+        }
+        ambientPulse = false
+        withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+            ambientPulse = true
+        }
+    }
+
+    private func preparePage(_ newPage: Int) {
+        pageVisible = reduceMotion
+        completionVisible = false
+        if newPage == 1 { analysisProgress = 0 }
+        if newPage == 2 { planProgress = 0 }
+
+        guard !reduceMotion else {
+            pageVisible = true
+            if newPage == 1 { analysisProgress = 0.72 }
+            if newPage == 2 { planProgress = 0.58 }
+            if newPage == 5 { completionVisible = true }
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+            withAnimation(.spring(response: 0.62, dampingFraction: 0.82)) {
+                pageVisible = true
+            }
+        }
+
+        if newPage == 1 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.34) {
+                withAnimation(.easeInOut(duration: 1.0)) {
+                    analysisProgress = 0.72
+                }
+            }
+        }
+
+        if newPage == 2 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.34) {
+                withAnimation(.easeOut(duration: 0.95)) {
+                    planProgress = 0.58
+                }
+            }
+        }
+
+        if newPage == 5 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.46) {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.72)) {
+                    completionVisible = true
+                }
+            }
+        }
+    }
+
+    // MARK: 1 - Welcome
+
+    private var welcomePage: some View {
+        OBPageScroll {
+            VStack(spacing: 18) {
+                Spacer(minLength: 8)
+
+                OBWordmark(compact: false)
+                    .scaleEffect(pageVisible ? 1 : 0.72)
+                    .opacity(pageVisible ? 1 : 0)
+                    .shadow(color: AVENColor.accentPurple.opacity(ambientPulse && !reduceMotion ? 0.20 : 0.08), radius: 22)
+                    .animation(reduceMotion ? .none : .spring(response: 0.72, dampingFraction: 0.72), value: pageVisible)
+
+                VStack(spacing: 8) {
+                    Text("Grow smarter on TikTok.")
+                        .font(.system(size: 31, weight: .bold, design: .rounded))
+                        .foregroundColor(AVENColor.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .obReveal(pageVisible, delay: 0.10, reduceMotion: reduceMotion)
+
+                    Text("Verstehe. Optimiere. Wachse.")
+                        .font(AVENFont.body(14))
+                        .foregroundColor(AVENColor.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                        .padding(.horizontal, 12)
+                        .obReveal(pageVisible, delay: 0.17, reduceMotion: reduceMotion)
+                }
+
+                OBWelcomeHero(active: pageVisible, pulse: ambientPulse, reduceMotion: reduceMotion)
+                    .frame(height: 280)
+                    .obReveal(pageVisible, delay: 0.23, reduceMotion: reduceMotion, offset: 22)
+
+                Text("Analyze. Optimize. Grow.")
+                    .font(AVENFont.body(14, weight: .semibold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [AVENColor.accentPurple, AVENColor.accentBlue],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .obReveal(pageVisible, delay: 0.42, reduceMotion: reduceMotion)
+            }
+        }
+    }
+
+    // MARK: 2 - Analysis
+
+    private var analysisPage: some View {
+        OBPageScroll {
+            VStack(spacing: 18) {
+                OBHeadline(
+                    title: "Verstehe deinen Account",
+                    subtitle: "Ein Scan. Klare Insights."
+                )
+                .obReveal(pageVisible, delay: 0.02, reduceMotion: reduceMotion)
+
+                OBPreviewCard {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Analyse")
+                                    .font(AVENFont.display(20))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                Text("Scan → Score → Plan")
+                                    .font(AVENFont.body(10, weight: .semibold))
+                                    .foregroundColor(AVENColor.accentPurple)
+                            }
+                            Spacer()
+                            ZStack {
+                                Circle()
+                                    .fill(AVENColor.accentPurple.opacity(0.10))
+                                    .frame(width: 34, height: 34)
+                                Image(systemName: "sparkles")
+                                    .foregroundColor(AVENColor.accentPurple)
+                                    .rotationEffect(.degrees(ambientPulse && !reduceMotion ? 10 : -8))
+                            }
+                        }
+                        .obReveal(pageVisible, delay: 0.09, reduceMotion: reduceMotion)
+
+                        HStack(spacing: 7) {
+                            OBTabPill("\u{00DC}bersicht", selected: true)
+                            OBTabPill("Profil")
+                            OBTabPill("Content")
+                            OBTabPill("Engagement")
+                        }
+                        .obReveal(pageVisible, delay: 0.15, reduceMotion: reduceMotion)
+
+                        HStack(spacing: 9) {
+                            OBMetricPreview(icon: "person.crop.circle", label: "Profil", active: pageVisible, delay: 0.20, reduceMotion: reduceMotion)
+                            OBMetricPreview(icon: "play.rectangle", label: "Content", active: pageVisible, delay: 0.27, reduceMotion: reduceMotion)
+                            OBMetricPreview(icon: "heart", label: "Engagement", active: pageVisible, delay: 0.34, reduceMotion: reduceMotion)
+                        }
+
+                        HStack(spacing: 15) {
+                            ZStack {
+                                Circle()
+                                    .stroke(AVENColor.backgroundSecondary, lineWidth: 9)
+                                Circle()
+                                    .trim(from: 0, to: analysisProgress)
+                                    .stroke(
+                                        LinearGradient(colors: [AVENColor.accentPurple, AVENColor.accentBlue], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                        style: StrokeStyle(lineWidth: 9, lineCap: .round)
+                                    )
+                                    .rotationEffect(.degrees(-90))
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .foregroundColor(AVENColor.accentPurple)
+                                    .scaleEffect(pageVisible ? 1 : 0.72)
+                            }
+                            .frame(width: 90, height: 90)
+
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("AVEN Score")
+                                    .font(AVENFont.body(13, weight: .semibold))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                Text("Dein Score entsteht aus echten Findings.")
+                                    .font(AVENFont.body(12))
+                                    .foregroundColor(AVENColor.textSecondary)
+                                    .lineSpacing(3)
+                            }
+                        }
+                        .obReveal(pageVisible, delay: 0.40, reduceMotion: reduceMotion)
+                    }
+                    .overlay(alignment: .top) {
+                        OBScanSheen(active: page == 1 && !reduceMotion)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .obReveal(pageVisible, delay: 0.07, reduceMotion: reduceMotion, offset: 20)
+
+                OBInfoLine(icon: "checkmark.seal.fill", text: "Nur echte Daten. Keine Demo-Stats.")
+                    .obReveal(pageVisible, delay: 0.48, reduceMotion: reduceMotion)
+            }
+        }
+    }
+
+    // MARK: 3 - Action plan
+
+    private var actionPlanPage: some View {
+        OBPageScroll {
+            VStack(spacing: 18) {
+                OBHeadline(
+                    title: "Dein n\u{00E4}chster Schritt.",
+                    subtitle: "AVEN priorisiert. Du setzt um."
+                )
+                .obReveal(pageVisible, delay: 0.02, reduceMotion: reduceMotion)
+
+                OBPreviewCard {
+                    VStack(spacing: 15) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Diese Woche")
+                                    .font(AVENFont.body(15, weight: .semibold))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                Text("Dein Plan")
+                                    .font(AVENFont.body(11))
+                                    .foregroundColor(AVENColor.textMuted)
+                            }
+                            Spacer()
+                            HStack(spacing: 5) {
+                                Image(systemName: "sparkles")
+                                Text("Growth Plan")
+                            }
+                            .font(AVENFont.body(10, weight: .semibold))
+                            .foregroundColor(AVENColor.accentPurple)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(AVENColor.accentPurple.opacity(0.08))
+                            .clipShape(Capsule())
+                        }
+                        .obReveal(pageVisible, delay: 0.09, reduceMotion: reduceMotion)
+
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(AVENColor.backgroundSecondary)
+                                Capsule()
+                                    .fill(LinearGradient(colors: [AVENColor.accentPurple, AVENColor.accentBlue], startPoint: .leading, endPoint: .trailing))
+                                    .frame(width: geo.size.width * planProgress)
+                                    .shadow(color: AVENColor.accentPurple.opacity(0.18), radius: 5)
+                            }
+                        }
+                        .frame(height: 7)
+
+                        HStack {
+                            Text("Priorisierte n\u{00E4}chste Schritte")
+                                .font(AVENFont.body(10, weight: .semibold))
+                                .foregroundColor(AVENColor.textMuted)
+                            Spacer()
+                            Text("Fortschritt")
+                                .font(AVENFont.body(10, weight: .semibold))
+                                .foregroundColor(AVENColor.accentPurple)
+                        }
+                        .obReveal(pageVisible, delay: 0.17, reduceMotion: reduceMotion)
+
+                        OBTaskRow(icon: "text.alignleft", title: "Bio klarer positionieren", priority: "HOCH")
+                            .obReveal(pageVisible, delay: 0.23, reduceMotion: reduceMotion, offset: 14)
+                        OBTaskRow(icon: "play.fill", title: "Hook gezielt testen", priority: "MITTEL")
+                            .obReveal(pageVisible, delay: 0.31, reduceMotion: reduceMotion, offset: 14)
+                        OBTaskRow(icon: "arrow.up.right", title: "CTA verbessern", priority: "NIEDRIG")
+                            .obReveal(pageVisible, delay: 0.39, reduceMotion: reduceMotion, offset: 14)
+                    }
+                }
+                .obReveal(pageVisible, delay: 0.06, reduceMotion: reduceMotion, offset: 20)
+
+                HStack(spacing: 8) {
+                    OBMiniPromise(icon: "arrow.up", text: "Priorit\u{00E4}ten")
+                    OBMiniPromise(icon: "star.fill", text: "XP & Level")
+                    OBMiniPromise(icon: "checkmark.circle.fill", text: "Fortschritt")
+                }
+                .obReveal(pageVisible, delay: 0.47, reduceMotion: reduceMotion)
+            }
+        }
+    }
+
+    // MARK: 4 - Goal
+
+    private var goalPage: some View {
+        OBPageScroll {
+            VStack(spacing: 16) {
+                OBHeadline(
+                    title: "Setze dein Ziel.",
+                    subtitle: "Ein Ziel. Ein klarer Plan."
+                )
+                .obReveal(pageVisible, delay: 0.02, reduceMotion: reduceMotion)
+
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach(Array(OBGoal.allCases.enumerated()), id: \.element.id) { index, goal in
+                        Button {
+                            if reduceMotion {
+                                selectedGoal = goal
+                                target = ""
+                            } else {
+                                withAnimation(.spring(response: 0.44, dampingFraction: 0.72)) {
+                                    selectedGoal = goal
+                                    target = ""
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                ZStack {
+                                    Circle()
+                                        .fill(AVENColor.accentPurple.opacity(selectedGoal == goal ? 0.16 : 0.09))
+                                        .frame(width: 38, height: 38)
+                                        .scaleEffect(selectedGoal == goal && ambientPulse && !reduceMotion ? 1.08 : 1)
+                                    Image(systemName: goal.icon)
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundColor(AVENColor.accentPurple)
+                                }
+                                Text(goal.title)
+                                    .font(AVENFont.body(13, weight: .semibold))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                    .multilineTextAlignment(.leading)
+                                Spacer(minLength: 0)
+                                if selectedGoal == goal {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(AVENColor.accentPurple)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, minHeight: 68)
+                            .background(selectedGoal == goal ? AVENColor.accentPurple.opacity(0.07) : AVENColor.backgroundCard)
+                            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    .strokeBorder(selectedGoal == goal ? AVENColor.accentPurple.opacity(0.65) : AVENColor.borderSubtle, lineWidth: selectedGoal == goal ? 1.2 : 0.8)
+                            )
+                            .shadow(color: selectedGoal == goal ? AVENColor.accentPurple.opacity(0.09) : .clear, radius: 10, y: 4)
+                        }
+                        .buttonStyle(PressButtonStyle())
+                        .obReveal(pageVisible, delay: 0.08 + Double(index) * 0.055, reduceMotion: reduceMotion, offset: 14)
+                    }
+                }
+
+                OBPreviewCard {
+                    VStack(alignment: .leading, spacing: 13) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Ausgew\u{00E4}hltes Ziel")
+                                    .font(AVENFont.body(10, weight: .semibold))
+                                    .foregroundColor(AVENColor.accentPurple)
+                                Text(selectedGoal.title)
+                                    .font(AVENFont.display(18))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                    .contentTransition(.opacity)
+                            }
+                            Spacer()
+                            ZStack {
+                                Circle()
+                                    .fill(AVENColor.accentPurple.opacity(0.10))
+                                    .frame(width: 44, height: 44)
+                                Image(systemName: selectedGoal.icon)
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(AVENColor.accentPurple)
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                        }
+
+                        Divider().background(AVENColor.borderSubtle)
+
+                        Text(selectedGoal.targetLabel)
+                            .font(AVENFont.body(11, weight: .semibold))
+                            .foregroundColor(AVENColor.textMuted)
+
+                        TextField(selectedGoal.placeholder, text: $target)
+                            .keyboardType(.numberPad)
+                            .focused($targetFocused)
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundColor(AVENColor.textPrimary)
+                            .padding(.horizontal, 13)
+                            .frame(height: 48)
+                            .background(AVENColor.backgroundElevated)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(targetFocused ? AVENColor.accentPurple.opacity(0.55) : AVENColor.borderSubtle, lineWidth: 1)
+                            )
+                            .shadow(color: targetFocused ? AVENColor.accentPurple.opacity(0.10) : .clear, radius: 9)
+
+                        Text("Zeitraum")
+                            .font(AVENFont.body(11, weight: .semibold))
+                            .foregroundColor(AVENColor.textMuted)
+
+                        HStack(spacing: 6) {
+                            ForEach(["30 Tage", "3 Monate", "6 Monate", "1 Jahr"], id: \.self) { item in
+                                Button {
+                                    if reduceMotion {
+                                        deadline = item
+                                    } else {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                                            deadline = item
+                                        }
+                                    }
+                                } label: {
+                                    Text(item)
+                                        .font(AVENFont.body(10, weight: deadline == item ? .semibold : .regular))
+                                        .foregroundColor(deadline == item ? .white : AVENColor.textSecondary)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 34)
+                                        .background(deadline == item ? AVENColor.accentPurple : AVENColor.backgroundElevated)
+                                        .clipShape(Capsule())
+                                        .scaleEffect(deadline == item ? 1.02 : 1)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
                 }
+                .obReveal(pageVisible, delay: 0.38, reduceMotion: reduceMotion, offset: 18)
             }
         }
-        .onDisappear {
-            on = false; breathe = false
-            sparkTask?.cancel(); sparkTask = nil
-            sparkAlpha = Array(repeating: 0, count: 6)
+    }
+
+    // MARK: 5 - Tools
+
+    private var toolsPage: some View {
+        OBPageScroll {
+            VStack(spacing: 18) {
+                OBHeadline(
+                    title: "Alles \u{00FC}ber den + Button.",
+                    subtitle: "Analysieren. Planen. Testen."
+                )
+                .obReveal(pageVisible, delay: 0.02, reduceMotion: reduceMotion)
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    AVENColor.accentPurple.opacity(0.13),
+                                    AVENColor.backgroundCard,
+                                    AVENColor.accentBlue.opacity(0.10)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    HStack(spacing: 0) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("\u{2726}  Empfohlen")
+                                .font(AVENFont.body(10, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(AVENColor.accentPurple)
+                                .clipShape(Capsule())
+                                .scaleEffect(ambientPulse && !reduceMotion ? 1.03 : 1)
+                            Text("Growth Experiment")
+                                .font(AVENFont.display(19))
+                                .foregroundColor(AVENColor.textPrimary)
+                            Text("Teste, was wirklich funktioniert.")
+                                .font(AVENFont.body(11))
+                                .foregroundColor(AVENColor.textSecondary)
+                                .lineSpacing(2)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        AVENFlaskView(animated: true)
+                            .frame(width: 132, height: 126)
+                            .scaleEffect(pageVisible ? (ambientPulse && !reduceMotion ? 1.04 : 1) : 0.78)
+                            .rotationEffect(.degrees(pageVisible ? 0 : 4))
+                    }
+                    .padding(.leading, 16)
+                    .padding(.trailing, 5)
+                }
+                .frame(height: 150)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .strokeBorder(AVENColor.accentPurple.opacity(0.15), lineWidth: 1)
+                )
+                .shadow(color: AVENColor.accentPurple.opacity(ambientPulse && !reduceMotion ? 0.12 : 0.06), radius: 16, y: 7)
+                .obReveal(pageVisible, delay: 0.08, reduceMotion: reduceMotion, offset: 18)
+
+                ZStack {
+                    Circle()
+                        .stroke(AVENColor.accentPurple.opacity(0.15), lineWidth: 1)
+                        .frame(width: 58, height: 58)
+                        .scaleEffect(ambientPulse && !reduceMotion ? 1.22 : 0.92)
+                        .opacity(ambientPulse && !reduceMotion ? 0.15 : 0.45)
+                    Circle()
+                        .fill(LinearGradient(colors: [AVENColor.accentPurple, AVENColor.accentBlue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 46, height: 46)
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .obReveal(pageVisible, delay: 0.18, reduceMotion: reduceMotion, offset: 8)
+
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach(Array(OBToolInfo.all.enumerated()), id: \.offset) { index, tool in
+                        OBToolCard(icon: tool.icon, title: tool.title)
+                            .obReveal(pageVisible, delay: 0.22 + Double(index) * 0.055, reduceMotion: reduceMotion, offset: 16)
+                    }
+                }
+            }
         }
     }
-}
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SCREEN 2 — LIVE PROFILE SCANNER
-// Fake TikTok profile card with animated scan line
-// ══════════════════════════════════════════════════════════════════════════════
+    // MARK: 6 - Appearance
 
-struct OBScanScreen: View {
-    @State private var on = false
-    @State private var scanning = false
-    @State private var checkAvatar = false
-    @State private var checkBio = false
-    @State private var checkStats = false
-    @State private var done = false
+    private var appearancePage: some View {
+        OBPageScroll {
+            VStack(spacing: 18) {
+                OBHeadline(
+                    title: "Dein Look. Dein Start.",
+                    subtitle: "Hell, Dunkel oder System."
+                )
+                .obReveal(pageVisible, delay: 0.02, reduceMotion: reduceMotion)
 
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            // Profile card
-            ZStack(alignment: .top) {
-                // Card body
-                VStack(alignment: .leading, spacing: 10) {
-                    // Row 1: avatar + handle
+                OBPreviewCard {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Darstellung")
+                            .font(AVENFont.body(14, weight: .semibold))
+                            .foregroundColor(AVENColor.textPrimary)
+
+                        HStack(spacing: 7) {
+                            ForEach(AVENAppearance.allCases) { option in
+                                OBAppearanceButton(option: option, selected: appearanceRaw == option.rawValue) {
+                                    if reduceMotion {
+                                        appearanceRaw = option.rawValue
+                                    } else {
+                                        withAnimation(.spring(response: 0.38, dampingFraction: 0.76)) {
+                                            appearanceRaw = option.rawValue
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        OBAppearancePreview(selectedRaw: appearanceRaw, pulse: ambientPulse, reduceMotion: reduceMotion)
+                            .frame(height: 136)
+                    }
+                }
+                .obReveal(pageVisible, delay: 0.08, reduceMotion: reduceMotion, offset: 18)
+
+                OBPreviewCard {
                     HStack(spacing: 12) {
                         ZStack {
-                            Circle().fill(LinearGradient(colors:[Color(hex:"#9B5CFF"),Color(hex:"#4F8FFF")],
-                                                        startPoint:.topLeading,endPoint:.bottomTrailing))
-                                .frame(width: 46, height: 46)
-                            Text("A").font(.system(size:20,weight:.bold)).foregroundColor(.white)
+                            Circle()
+                                .fill(AVENColor.accentPurple.opacity(0.10))
+                                .frame(width: 48, height: 48)
+                                .scaleEffect(completionVisible && !reduceMotion ? 1.04 : 1)
+                            Image(systemName: selectedGoal.icon)
+                                .foregroundColor(AVENColor.accentPurple)
                         }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("@creator_pro").font(.system(size:14,weight:.semibold)).foregroundColor(.white)
-                            Text("Content Creator · Growth").font(.system(size:11)).foregroundColor(Color(hex:"#8E8EA0"))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Dein Ziel")
+                                .font(AVENFont.body(10, weight: .semibold))
+                                .foregroundColor(AVENColor.textMuted)
+                            Text(selectedGoal.title)
+                                .font(AVENFont.body(15, weight: .semibold))
+                                .foregroundColor(AVENColor.textPrimary)
+                            Text(target.isEmpty ? deadline : "\(target) \u{00B7} \(deadline)")
+                                .font(AVENFont.body(12))
+                                .foregroundColor(AVENColor.textSecondary)
                         }
                         Spacer()
-                        if checkAvatar {
-                            Image(systemName:"checkmark.circle.fill")
-                                .foregroundColor(Color(hex:"#34D399")).font(.system(size:16))
-                                .transition(.scale.combined(with:.opacity))
+                        ZStack {
+                            Circle()
+                                .fill(AVENColor.textPositive.opacity(0.10))
+                                .frame(width: 42, height: 42)
+                                .scaleEffect(completionVisible ? 1 : 0.5)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(AVENColor.textPositive)
+                                .scaleEffect(completionVisible ? 1 : 0.25)
                         }
-                    }
-                    Rectangle().fill(Color(hex:"#222234")).frame(height: 1)
-                    // Bio
-                    HStack {
-                        Text("🎯 TikTok Growth & Strategie\n✨ Täglich neue Tipps\n👇 Link unten")
-                            .font(.system(size:12)).foregroundColor(Color(hex:"#8E8EA0")).lineSpacing(3)
-                        Spacer()
-                        if checkBio {
-                            Image(systemName:"checkmark.circle.fill")
-                                .foregroundColor(Color(hex:"#34D399")).font(.system(size:16))
-                                .transition(.scale.combined(with:.opacity))
-                        }
-                    }
-                    Rectangle().fill(Color(hex:"#222234")).frame(height: 1)
-                    // Stats row
-                    HStack {
-                        ForEach(["12K\nFollower","840K\nLikes","8.7%\nEngage"], id:\.self) { s in
-                            Text(s).font(.system(size:11,weight:.medium)).foregroundColor(Color(hex:"#8E8EA0"))
-                                .multilineTextAlignment(.center).frame(maxWidth:.infinity)
-                        }
-                        if checkStats {
-                            Image(systemName:"checkmark.circle.fill")
-                                .foregroundColor(Color(hex:"#34D399")).font(.system(size:16))
-                                .transition(.scale.combined(with:.opacity))
-                        }
-                    }
-                    // Thumbnails — scan line strictly clipped here
-                    ZStack {
-                        HStack(spacing: 6) {
-                            ForEach(0..<3, id:\.self) { _ in
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color(hex:"#222234")).frame(height: 50).frame(maxWidth:.infinity)
-                            }
-                        }
-                        if scanning {
-                            Rectangle()
-                                .fill(LinearGradient(
-                                    colors:[Color(hex:"#9B5CFF").opacity(0),
-                                            Color(hex:"#9B5CFF"),
-                                            Color(hex:"#4F8FFF"),
-                                            Color(hex:"#00D4FF"),
-                                            Color(hex:"#00D4FF").opacity(0)],
-                                    startPoint:.leading, endPoint:.trailing))
-                                .frame(height: 2)
-                                .shadow(color:Color(hex:"#9B5CFF"), radius:6)
-                        }
-                    }
-                    .frame(height: 50)
-                    .clipped()
-                    if done {
-                        Label("Analyse abgeschlossen", systemImage:"checkmark.shield.fill")
-                            .font(.system(size:12,weight:.semibold)).foregroundColor(Color(hex:"#34D399"))
-                            .transition(.move(edge:.bottom).combined(with:.opacity))
+                        .opacity(completionVisible ? 1 : 0)
                     }
                 }
-                .padding(16)
-                .background(Color(hex:"#16161F"))
-                .clipShape(RoundedRectangle(cornerRadius:16))
-                .overlay(RoundedRectangle(cornerRadius:16).stroke(Color(hex:"#222234"),lineWidth:1))
+                .obReveal(pageVisible, delay: 0.22, reduceMotion: reduceMotion, offset: 15)
 
-                // Scan corners only (scan line now lives inside thumbnail ZStack)
-                OBScanFrame()
+                OBInfoLine(icon: "checkmark.seal.fill", text: "Bereit f\u{00FC}r deine erste Analyse.")
+                    .obReveal(pageVisible, delay: 0.44, reduceMotion: reduceMotion)
             }
-            .frame(maxWidth: 300)
-            .opacity(on ? 1 : 0).scaleEffect(on ? 1 : 0.9)
-            .animation(.easeOut(duration:0.4), value: on)
+        }
+    }
 
-            Spacer().frame(height: 20)
+    private func persistGoal() {
+        let cleanedTarget = target.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedTarget.isEmpty else { return }
+
+        AVENUserGoalStore.save(
+            type: selectedGoal.storageType,
+            current: "",
+            target: cleanedTarget,
+            deadline: deadline
+        )
+    }
+}
+
+// MARK: - Models
+
+private enum OBGoal: String, CaseIterable, Identifiable {
+    case followers
+    case views
+    case engagement
+    case posting
+    case professional
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .followers: return "Mehr Follower"
+        case .views: return "Mehr Views"
+        case .engagement: return "Mehr Engagement"
+        case .posting: return "Regelm\u{00E4}\u{00DF}iger posten"
+        case .professional: return "Account professioneller"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .followers: return "person.2.fill"
+        case .views: return "eye.fill"
+        case .engagement: return "heart.fill"
+        case .posting: return "calendar.badge.plus"
+        case .professional: return "sparkles"
+        }
+    }
+
+    var targetLabel: String {
+        switch self {
+        case .followers: return "Follower-Ziel"
+        case .views: return "View-Ziel"
+        case .engagement: return "Engagement-Ziel in %"
+        case .posting: return "Posts pro Woche"
+        case .professional: return "Gew\u{00FC}nschter AVEN Score"
+        }
+    }
+
+    var placeholder: String {
+        switch self {
+        case .followers: return "z. B. 5.000"
+        case .views: return "z. B. 100.000"
+        case .engagement: return "z. B. 8"
+        case .posting: return "z. B. 4"
+        case .professional: return "z. B. 90"
+        }
+    }
+
+    var storageType: String {
+        switch self {
+        case .followers: return "Follower"
+        case .views: return "Views"
+        case .engagement: return "Engagement"
+        case .posting: return "Posts/Woche"
+        case .professional: return "AVEN Score"
+        }
+    }
+}
+
+private struct OBToolInfo {
+    let icon: String
+    let title: String
+
+    static let all: [OBToolInfo] = [
+        .init(icon: "person.crop.rectangle", title: "Profilanalyse"),
+        .init(icon: "play.rectangle", title: "Videoanalyse"),
+        .init(icon: "ellipsis.message", title: "AI Coach"),
+        .init(icon: "lightbulb", title: "Content-Ideen"),
+        .init(icon: "clock", title: "Posting-Zeit"),
+        .init(icon: "target", title: "Ziele")
+    ]
+}
+
+// MARK: - Motion helpers
+
+private extension View {
+    func obReveal(_ active: Bool, delay: Double, reduceMotion: Bool, offset: CGFloat = 12) -> some View {
+        self
+            .opacity(active ? 1 : 0)
+            .offset(y: active ? 0 : (reduceMotion ? 0 : offset))
+            .scaleEffect(active ? 1 : (reduceMotion ? 1 : 0.985))
+            .animation(reduceMotion ? .none : .spring(response: 0.58, dampingFraction: 0.84).delay(delay), value: active)
+    }
+}
+
+private struct OBScanSheen: View {
+    let active: Bool
+    @State private var travel = false
+
+    var body: some View {
+        GeometryReader { geo in
+            LinearGradient(
+                colors: [.clear, AVENColor.accentPurple.opacity(0.16), AVENColor.accentBlue.opacity(0.10), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: 72)
+            .rotationEffect(.degrees(12))
+            .offset(x: travel ? geo.size.width + 60 : -100)
+            .opacity(active ? 1 : 0)
+        }
+        .clipped()
+        .onAppear {
+            guard active else { return }
+            withAnimation(.linear(duration: 1.65).repeatForever(autoreverses: false)) {
+                travel = true
+            }
+        }
+        .onChange(of: active) { _, value in
+            if value {
+                travel = false
+                withAnimation(.linear(duration: 1.65).repeatForever(autoreverses: false)) {
+                    travel = true
+                }
+            } else {
+                travel = false
+            }
+        }
+    }
+}
+
+// MARK: - Shared onboarding components
+
+private struct OBPageScroll<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            content
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+        }
+    }
+}
+
+private struct OBWordmark: View {
+    let compact: Bool
+
+    var body: some View {
+        HStack(spacing: compact ? 6 : 10) {
+            Image("AVENMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: compact ? 31 : 76, height: compact ? 29 : 70)
+            Text("AVEN")
+                .font(.system(size: compact ? 16 : 27, weight: .medium))
+                .tracking(compact ? 5.5 : 8)
+                .foregroundColor(AVENColor.textPrimary)
+                .offset(x: compact ? 2 : 4)
+        }
+    }
+}
+
+private struct OBHeadline: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(AVENColor.textPrimary)
+                .multilineTextAlignment(.center)
+            Text(subtitle)
+                .font(AVENFont.body(14))
+                .foregroundColor(AVENColor.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .padding(.horizontal, 4)
+        }
+    }
+}
+
+private struct OBPreviewCard<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(16)
+            .background(AVENColor.backgroundCard)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(AVENColor.borderSubtle, lineWidth: 0.8)
+            )
+            .shadow(color: AVENColor.cardShadow, radius: 10, y: 4)
+    }
+}
+
+private struct OBWelcomeHero: View {
+    let active: Bool
+    let pulse: Bool
+    let reduceMotion: Bool
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [AVENColor.accentPurple.opacity(0.12), AVENColor.backgroundCard, AVENColor.accentBlue.opacity(0.10)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .strokeBorder(AVENColor.accentPurple.opacity(0.13), lineWidth: 1)
+                )
+
+            Circle()
+                .fill(AVENColor.accentPurple.opacity(0.07))
+                .frame(width: 190, height: 190)
+                .blur(radius: 4)
+                .scaleEffect(pulse && !reduceMotion ? 1.08 : 0.94)
+
+            VStack(spacing: 18) {
+                ZStack {
+                    Circle()
+                        .stroke(AVENColor.accentPurple.opacity(0.12), lineWidth: 1)
+                        .frame(width: 128, height: 128)
+                        .scaleEffect(pulse && !reduceMotion ? 1.06 : 0.96)
+                    Circle()
+                        .stroke(AVENColor.accentBlue.opacity(0.10), lineWidth: 1)
+                        .frame(width: 98, height: 98)
+                        .scaleEffect(pulse && !reduceMotion ? 0.94 : 1.04)
+
+                    HStack(alignment: .bottom, spacing: 8) {
+                        ForEach(Array([36, 54, 78, 102].enumerated()), id: \.offset) { index, height in
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [AVENColor.accentPurple.opacity(0.5), AVENColor.accentBlue],
+                                        startPoint: .bottom,
+                                        endPoint: .top
+                                    )
+                                )
+                                .frame(width: 15, height: active ? CGFloat(height) : 8)
+                                .animation(reduceMotion ? .none : .spring(response: 0.7, dampingFraction: 0.72).delay(0.18 + Double(index) * 0.08), value: active)
+                        }
+                    }
+                    .offset(y: 8)
+
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundStyle(LinearGradient(colors: [AVENColor.accentPurple, AVENColor.accentBlue], startPoint: .bottomLeading, endPoint: .topTrailing))
+                        .offset(x: 56, y: -54)
+                        .scaleEffect(active ? 1 : 0.4)
+                        .opacity(active ? 1 : 0)
+                        .animation(reduceMotion ? .none : .spring(response: 0.55, dampingFraction: 0.7).delay(0.52), value: active)
+                }
+
+                HStack(spacing: 8) {
+                    OBFeaturePill(icon: "chart.bar.fill", text: "Analysieren")
+                    OBFeaturePill(icon: "wand.and.stars", text: "Optimieren")
+                    OBFeaturePill(icon: "arrow.up.right", text: "Wachsen")
+                }
+            }
+            .padding(.horizontal, 14)
+        }
+        .shadow(color: AVENColor.accentPurple.opacity(pulse && !reduceMotion ? 0.12 : 0.05), radius: 22, y: 8)
+    }
+}
+
+private struct OBMiniPromise: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(AVENColor.accentPurple)
+            Text(text)
+                .font(AVENFont.body(10, weight: .semibold))
+                .foregroundColor(AVENColor.textSecondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity)
+        .frame(height: 38)
+        .background(AVENColor.backgroundCard)
+        .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(AVENColor.borderSubtle, lineWidth: 0.7))
+    }
+}
+
+private struct OBFeaturePill: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(AVENColor.accentPurple)
+            Text(text)
+                .font(AVENFont.body(10, weight: .semibold))
+                .foregroundColor(AVENColor.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 62)
+        .background(AVENColor.backgroundCard.opacity(0.84))
+        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(AVENColor.borderSubtle.opacity(0.7), lineWidth: 0.6))
+    }
+}
+
+private struct OBTabPill: View {
+    let title: String
+    let selected: Bool
+
+    init(_ title: String, selected: Bool = false) {
+        self.title = title
+        self.selected = selected
+    }
+
+    var body: some View {
+        Text(title)
+            .font(AVENFont.body(10, weight: selected ? .semibold : .regular))
+            .foregroundColor(selected ? AVENColor.accentPurple : AVENColor.textMuted)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(selected ? AVENColor.accentPurple.opacity(0.10) : Color.clear)
+            .clipShape(Capsule())
+    }
+}
+
+private struct OBMetricPreview: View {
+    let icon: String
+    let label: String
+    let active: Bool
+    let delay: Double
+    let reduceMotion: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(AVENColor.accentPurple)
+            Text(label)
+                .font(AVENFont.body(10, weight: .semibold))
+                .foregroundColor(AVENColor.textPrimary)
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach(0..<5, id: \.self) { i in
+                    Capsule()
+                        .fill(AVENColor.accentPurple.opacity(0.22 + Double(i) * 0.1))
+                        .frame(width: 4, height: active ? CGFloat(6 + i * 3) : 3)
+                        .animation(reduceMotion ? .none : .spring(response: 0.5, dampingFraction: 0.75).delay(delay + Double(i) * 0.035), value: active)
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+        .background(AVENColor.backgroundElevated)
+        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .obReveal(active, delay: delay, reduceMotion: reduceMotion, offset: 10)
+    }
+}
+
+private struct OBTaskRow: View {
+    let icon: String
+    let title: String
+    let priority: String
+
+    var body: some View {
+        HStack(spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(AVENColor.accentPurple.opacity(0.09))
+                    .frame(width: 38, height: 38)
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AVENColor.accentPurple)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(priority)
+                    .font(AVENFont.body(9, weight: .bold))
+                    .foregroundColor(AVENColor.accentPurple)
+                Text(title)
+                    .font(AVENFont.body(12, weight: .semibold))
+                    .foregroundColor(AVENColor.textPrimary)
+            }
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(AVENColor.accentPurple.opacity(0.08))
+                    .frame(width: 30, height: 30)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(AVENColor.accentPurple)
+            }
+        }
+        .padding(11)
+        .background(AVENColor.backgroundElevated)
+        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+    }
+}
+
+private struct OBToolCard: View {
+    let icon: String
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(AVENColor.accentPurple.opacity(0.09))
+                    .frame(width: 38, height: 38)
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AVENColor.accentPurple)
+            }
+            Text(title)
+                .font(AVENFont.body(12, weight: .semibold))
+                .foregroundColor(AVENColor.textPrimary)
+            Spacer(minLength: 0)
+            Image(systemName: "arrow.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(AVENColor.accentPurple)
+        }
+        .padding(11)
+        .frame(maxWidth: .infinity, minHeight: 62)
+        .background(AVENColor.backgroundCard)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(AVENColor.borderSubtle, lineWidth: 0.8))
+    }
+}
+
+private struct OBAppearanceButton: View {
+    let option: AVENAppearance
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: option.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(option.title)
+                    .font(AVENFont.body(10, weight: .semibold))
+            }
+            .foregroundColor(selected ? .white : AVENColor.textSecondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                Group {
+                    if selected {
+                        LinearGradient(colors: [AVENColor.accentPurple, AVENColor.accentBlue], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    } else {
+                        LinearGradient(colors: [AVENColor.backgroundElevated, AVENColor.backgroundElevated], startPoint: .leading, endPoint: .trailing)
+                    }
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .strokeBorder(selected ? AVENColor.accentPurple.opacity(0.35) : AVENColor.borderSubtle, lineWidth: 0.8)
+            )
+            .scaleEffect(selected ? 1.02 : 1)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct OBAppearancePreview: View {
+    let selectedRaw: String
+    let pulse: Bool
+    let reduceMotion: Bool
+
+    private var isDark: Bool { selectedRaw == AVENAppearance.dark.rawValue }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(isDark ? Color.black : AVENColor.backgroundElevated)
+                .animation(reduceMotion ? .none : .easeInOut(duration: 0.35), value: isDark)
+
+            Circle()
+                .fill(AVENColor.accentPurple.opacity(isDark ? 0.20 : 0.08))
+                .frame(width: 110, height: 110)
+                .blur(radius: 20)
+                .offset(x: 110, y: -25)
+                .scaleEffect(pulse && !reduceMotion ? 1.08 : 0.94)
+
             VStack(spacing: 12) {
-                Text("Analysiere dein Profil")
-                    .font(.system(size:26,weight:.bold,design:.rounded)).foregroundColor(.white)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 10)
-                    .animation(.easeOut(duration:0.5).delay(0.2), value: on)
-                Text("AVEN erkennt, was bereits stark ist – und wo noch Potenzial steckt.")
-                    .font(.system(size:15)).foregroundColor(Color(hex:"#8E8EA0"))
-                    .multilineTextAlignment(.center).padding(.horizontal,32)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 6)
-                    .animation(.easeOut(duration:0.5).delay(0.35), value: on)
-            }
-            Spacer()
-        }
-        .onAppear {
-            on = true
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.5) {
-                scanning = true
-                DispatchQueue.main.asyncAfter(deadline:.now()+0.3){ withAnimation(.spring()){ checkAvatar=true } }
-                DispatchQueue.main.asyncAfter(deadline:.now()+0.7){ withAnimation(.spring()){ checkBio=true } }
-                DispatchQueue.main.asyncAfter(deadline:.now()+1.1){ withAnimation(.spring()){ checkStats=true } }
-                DispatchQueue.main.asyncAfter(deadline:.now()+1.5){ scanning=false; withAnimation(.spring()){ done=true } }
-            }
-        }
-        .onDisappear {
-            on=false; scanning=false
-            checkAvatar=false; checkBio=false; checkStats=false; done=false
-        }
-    }
-}
-
-private struct OBScanFrame: View {
-    var body: some View {
-        GeometryReader { g in
-            ZStack(alignment:.topLeading) {
-                // top-left
-                OBCornerMark(flipH: false, flipV: false)
-                    .position(x: 12, y: 12)
-                // top-right
-                OBCornerMark(flipH: true, flipV: false)
-                    .position(x: g.size.width-12, y: 12)
-                // bottom-left
-                OBCornerMark(flipH: false, flipV: true)
-                    .position(x: 12, y: g.size.height-12)
-                // bottom-right
-                OBCornerMark(flipH: true, flipV: true)
-                    .position(x: g.size.width-12, y: g.size.height-12)
-            }
-        }
-    }
-}
-
-private struct OBCornerMark: View {
-    let flipH: Bool; let flipV: Bool
-    var body: some View {
-        ZStack(alignment:.topLeading) {
-            Rectangle().fill(Color(hex:"#9B5CFF")).frame(width:18,height:2)
-            Rectangle().fill(Color(hex:"#9B5CFF")).frame(width:2,height:18)
-        }
-        .scaleEffect(x: flipH ? -1 : 1, y: flipV ? -1 : 1)
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SCREEN 3 — AVEN SCORE RING
-// Circular progress ring + count-up + dimension bars
-// ══════════════════════════════════════════════════════════════════════════════
-
-struct OBScoreScreen: View {
-    @State private var on = false
-    @State private var ringProg: Double = 0
-    @State private var scoreNum: Int = 0
-    @State private var barsOn = false
-    private let dims = [("PROFIL",0.92),("BIO",0.84),("BRANDING",0.89),("CONTENT",0.81)]
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            // Ring
-            ZStack {
-                Circle().stroke(Color(hex:"#222234"), lineWidth:12).frame(width:180,height:180)
-                Circle()
-                    .trim(from:0, to:ringProg)
-                    .stroke(LinearGradient(colors:[Color(hex:"#9B5CFF"),Color(hex:"#4F8FFF")],
-                                           startPoint:.topLeading,endPoint:.bottomTrailing),
-                            style: StrokeStyle(lineWidth:12,lineCap:.round))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width:180,height:180)
-                    .shadow(color:Color(hex:"#9B5CFF").opacity(0.5),radius:8)
-                    .animation(.easeOut(duration:1.5).delay(0.3), value:ringProg)
-                VStack(spacing:4) {
-                    Text("\(scoreNum)")
-                        .font(.system(size:52,weight:.black,design:.rounded))
-                        .foregroundStyle(LinearGradient(
-                            colors:[Color(hex:"#B07AFF"),Color(hex:"#4F8FFF")],
-                            startPoint:.topLeading,endPoint:.bottomTrailing))
-                    Text("AVEN SCORE").font(.system(size:10,weight:.bold)).foregroundColor(Color(hex:"#5A5A6E")).tracking(2)
-                }
-            }
-            .scaleEffect(on ? 1 : 0.7).opacity(on ? 1 : 0)
-            .animation(.spring(response:0.6,dampingFraction:0.7).delay(0.1), value:on)
-
-            // Status pill
-            Text("Sehr gut ↑")
-                .font(.system(size:13,weight:.semibold)).foregroundColor(Color(hex:"#34D399"))
-                .padding(.horizontal,14).padding(.vertical,5)
-                .background(Color(hex:"#34D399").opacity(0.12)).clipShape(Capsule())
-                .padding(.top,8)
-                .opacity(on ? 1 : 0).animation(.easeOut(duration:0.4).delay(0.9), value:on)
-
-            Spacer().frame(height:18)
-
-            // Dimension bars
-            VStack(spacing:8) {
-                ForEach(Array(dims.enumerated()), id:\.offset) { idx, dim in
-                    HStack(spacing:10) {
-                        Text(dim.0).font(.system(size:11,weight:.semibold)).foregroundColor(Color(hex:"#8E8EA0"))
-                            .frame(width:60,alignment:.leading)
-                        GeometryReader { g in
-                            ZStack(alignment:.leading) {
-                                RoundedRectangle(cornerRadius:3).fill(Color(hex:"#222234"))
-                                RoundedRectangle(cornerRadius:3)
-                                    .fill(LinearGradient(colors:[Color(hex:"#9B5CFF"),Color(hex:"#4F8FFF")],
-                                                        startPoint:.leading,endPoint:.trailing))
-                                    .frame(width: barsOn ? g.size.width*dim.1 : 0)
-                                    .animation(.easeOut(duration:0.8).delay(0.1+Double(idx)*0.08), value:barsOn)
-                            }
-                        }
-                        .frame(height:6)
-                        Text("\(Int(dim.1*100))").font(.system(size:11,weight:.medium))
-                            .foregroundColor(.white).frame(width:24,alignment:.trailing)
-                    }
-                }
-            }
-            .padding(.horizontal,32)
-            .opacity(on ? 1 : 0).animation(.easeOut(duration:0.4).delay(0.85), value:on)
-
-            Spacer().frame(height:16)
-            VStack(spacing:12) {
-                Text("Dein AVEN Score")
-                    .font(.system(size:26,weight:.bold,design:.rounded)).foregroundColor(.white)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 10)
-                    .animation(.easeOut(duration:0.5).delay(0.15), value:on)
-                Text("Sieh sofort, wie stark dein Profil optimiert ist.")
-                    .font(.system(size:15)).foregroundColor(Color(hex:"#8E8EA0"))
-                    .multilineTextAlignment(.center).padding(.horizontal,32)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 6)
-                    .animation(.easeOut(duration:0.5).delay(0.3), value:on)
-            }
-            Spacer()
-        }
-        .onAppear {
-            on = true
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.4) {
-                ringProg = 0.87; barsOn = true
-                let total = 87
-                for i in 0...total {
-                    DispatchQueue.main.asyncAfter(deadline:.now()+Double(i)*(1.5/Double(total))) {
-                        scoreNum = i
-                    }
-                }
-            }
-        }
-        .onDisappear { on=false; ringProg=0; scoreNum=0; barsOn=false }
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SCREEN 4 — ACTION PLAN
-// Cards fly in, checkmarks animate, points float up
-// ══════════════════════════════════════════════════════════════════════════════
-
-struct OBActionScreen: View {
-    @State private var on = false
-    @State private var c0=false
-    @State private var c1=false
-    @State private var c2=false
-    @State private var ch0=false
-    @State private var ch1=false
-    @State private var p0=false
-    @State private var p1=false
-
-    private let tasks: [(String,String)] = [
-        ("Bio klarer positionieren","+5"),
-        ("CTA hinzufügen","+3"),
-        ("Branding vereinheitlichen","+4"),
-    ]
-
-    var body: some View {
-        VStack(spacing:0) {
-            Spacer()
-            // Progress bar
-            VStack(alignment:.leading,spacing:6) {
                 HStack {
-                    Text("2 von 3 erledigt").font(.system(size:12,weight:.semibold)).foregroundColor(Color(hex:"#8E8EA0"))
-                    Spacer()
-                }
-                GeometryReader { g in
-                    ZStack(alignment:.leading) {
-                        RoundedRectangle(cornerRadius:3).fill(Color(hex:"#222234"))
-                        RoundedRectangle(cornerRadius:3)
-                            .fill(LinearGradient(colors:[Color(hex:"#9B5CFF"),Color(hex:"#4F8FFF")],
-                                                startPoint:.leading,endPoint:.trailing))
-                            .frame(width: on ? g.size.width * 0.667 : 0)
-                            .animation(.easeOut(duration:0.8).delay(0.8), value:on)
-                    }
-                }
-                .frame(height:5)
-            }
-            .padding(.horizontal,32)
-            .opacity(on ? 1 : 0).animation(.easeOut(duration:0.4).delay(0.2), value:on)
-
-            Spacer().frame(height:14)
-
-            // Task cards
-            VStack(spacing:10) {
-                OBTaskCard(title:tasks[0].0, pts:tasks[0].1, visible:c0, checked:ch0, ptsUp:p0)
-                OBTaskCard(title:tasks[1].0, pts:tasks[1].1, visible:c1, checked:ch1, ptsUp:p1)
-                OBTaskCard(title:tasks[2].0, pts:tasks[2].1, visible:c2, checked:false, ptsUp:false)
-            }
-            .frame(maxWidth:300)
-
-            Spacer().frame(height:18)
-            VStack(spacing:12) {
-                Text("Dein persönlicher Aktionsplan")
-                    .font(.system(size:24,weight:.bold,design:.rounded)).foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 10)
-                    .animation(.easeOut(duration:0.5).delay(0.1), value:on)
-                Text("Du bekommst konkrete Aufgaben statt allgemeiner Tipps.")
-                    .font(.system(size:15)).foregroundColor(Color(hex:"#8E8EA0"))
-                    .multilineTextAlignment(.center).padding(.horizontal,32)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 6)
-                    .animation(.easeOut(duration:0.5).delay(0.25), value:on)
-            }
-            Spacer()
-        }
-        .onAppear {
-            on = true
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.2){ withAnimation(.spring(response:0.45)){ c0=true } }
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.38){ withAnimation(.spring(response:0.45)){ c1=true } }
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.55){ withAnimation(.spring(response:0.45)){ c2=true } }
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.85){ withAnimation(.spring()){ ch0=true } }
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.95){ withAnimation(.easeOut(duration:0.5)){ p0=true } }
-            DispatchQueue.main.asyncAfter(deadline:.now()+1.15){ withAnimation(.spring()){ ch1=true } }
-            DispatchQueue.main.asyncAfter(deadline:.now()+1.25){ withAnimation(.easeOut(duration:0.5)){ p1=true } }
-        }
-        .onDisappear { on=false;c0=false;c1=false;c2=false;ch0=false;ch1=false;p0=false;p1=false }
-    }
-}
-
-private struct OBTaskCard: View {
-    let title: String; let pts: String
-    let visible: Bool; let checked: Bool; let ptsUp: Bool
-    var body: some View {
-        ZStack(alignment:.topTrailing) {
-            HStack(spacing:12) {
-                Image(systemName: checked ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(checked ? Color(hex:"#34D399") : Color(hex:"#5A5A6E"))
-                    .font(.system(size:18)).animation(.spring(), value:checked)
-                VStack(alignment:.leading,spacing:2) {
-                    Text(title).font(.system(size:14,weight:.semibold)).foregroundColor(.white)
-                    Text(pts+" AVEN Punkte").font(.system(size:12)).foregroundColor(Color(hex:"#9B5CFF"))
-                }
-                Spacer()
-            }
-            .padding(.horizontal,14).padding(.vertical,13)
-            .background(Color(hex:"#16161F"))
-            .clipShape(RoundedRectangle(cornerRadius:12))
-            .overlay(RoundedRectangle(cornerRadius:12).stroke(
-                checked ? Color(hex:"#34D399").opacity(0.35) : Color(hex:"#222234"), lineWidth:1))
-
-            if ptsUp {
-                Text(pts)
-                    .font(.system(size:14,weight:.bold)).foregroundColor(Color(hex:"#34D399"))
-                    .offset(x:-8,y:-22)
-                    .transition(.asymmetric(insertion:.move(edge:.bottom).combined(with:.opacity),removal:.opacity))
-            }
-        }
-        .scaleEffect(visible ? 1 : 0.88)
-        .opacity(visible ? 1 : 0)
-        .offset(x: visible ? 0 : 28)
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SCREEN 5 — GROWTH DASHBOARD
-// Animated line chart + counting stat cards
-// ══════════════════════════════════════════════════════════════════════════════
-
-struct OBGrowthScreen: View {
-    @State private var on = false
-    @State private var lineP: CGFloat = 0
-    @State private var f1 = 0; @State private var f2 = 0
-
-    var body: some View {
-        VStack(spacing:0) {
-            Spacer()
-            // Stat grid
-            HStack(spacing:10) {
-                OBGrowthStat(label:"FOLLOWER",value:"\(f1 < 12400 ? "\(f1/1000).\((f1%1000)/100)K" : "12.4K")",change:"↑ 8.2%",delay:0)
-                OBGrowthStat(label:"ENGAGEMENT",value:"8.4%",change:"↑ 1.6%",delay:0.1)
-                OBGrowthStat(label:"LIKES",value:"\(f2 < 840000 ? "\(f2/1000)K" : "840K")",change:"↑ 12%",delay:0.2)
-            }
-            .padding(.horizontal,28)
-            .opacity(on ? 1 : 0).animation(.easeOut(duration:0.4).delay(0.1), value:on)
-
-            Spacer().frame(height:14)
-
-            // Chart card
-            VStack(alignment:.leading,spacing:8) {
-                Text("Score-Verlauf").font(.system(size:12,weight:.semibold)).foregroundColor(Color(hex:"#8E8EA0")).tracking(1)
-                ZStack(alignment:.bottomLeading) {
-                    OBGrowthPath(progress:lineP)
-                        .stroke(LinearGradient(colors:[Color(hex:"#9B5CFF"),Color(hex:"#4F8FFF")],
-                                               startPoint:.leading,endPoint:.trailing),
-                                style:StrokeStyle(lineWidth:2.5,lineCap:.round))
-                        .shadow(color:Color(hex:"#9B5CFF").opacity(0.45),radius:5)
-                        .animation(.easeOut(duration:1.6).delay(0.3), value:lineP)
-                }
-                .frame(height:80).clipped()
-            }
-            .padding(14)
-            .background(Color(hex:"#16161F")).clipShape(RoundedRectangle(cornerRadius:14))
-            .padding(.horizontal,28)
-            .opacity(on ? 1 : 0).animation(.easeOut(duration:0.4).delay(0.2), value:on)
-
-            Spacer().frame(height:16)
-            VStack(spacing:12) {
-                Text("Verfolge dein Wachstum")
-                    .font(.system(size:26,weight:.bold,design:.rounded)).foregroundColor(.white)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 10)
-                    .animation(.easeOut(duration:0.5).delay(0.15), value:on)
-                Text("Follower, Views, Likes, Engagement und Score – alles im Blick.")
-                    .font(.system(size:15)).foregroundColor(Color(hex:"#8E8EA0"))
-                    .multilineTextAlignment(.center).padding(.horizontal,32)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 6)
-                    .animation(.easeOut(duration:0.5).delay(0.3), value:on)
-            }
-            Spacer()
-        }
-        .onAppear {
-            on = true
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.4) {
-                lineP = 1
-                let steps = 60
-                for i in 0...steps {
-                    DispatchQueue.main.asyncAfter(deadline:.now()+Double(i)*(1.2/Double(steps))) {
-                        f1 = Int(Double(i)/Double(steps)*12400)
-                        f2 = Int(Double(i)/Double(steps)*840000)
-                    }
-                }
-            }
-        }
-        .onDisappear { on=false; lineP=0; f1=0; f2=0 }
-    }
-}
-
-private struct OBGrowthStat: View {
-    let label:String; let value:String; let change:String; let delay:Double
-    var body:some View {
-        VStack(spacing:4) {
-            Text(value).font(.system(size:16,weight:.bold)).foregroundColor(.white)
-            Text(label).font(.system(size:9,weight:.semibold)).foregroundColor(Color(hex:"#8E8EA0")).tracking(1)
-            Text(change).font(.system(size:11,weight:.semibold)).foregroundColor(Color(hex:"#34D399"))
-        }
-        .frame(maxWidth:.infinity).padding(.vertical,10)
-        .background(Color(hex:"#16161F")).clipShape(RoundedRectangle(cornerRadius:10))
-    }
-}
-
-private struct OBGrowthPath: Shape {
-    var progress: CGFloat
-    var animatableData: CGFloat { get { progress } set { progress = newValue } }
-    func path(in rect: CGRect) -> Path {
-        let pts: [CGFloat] = [0.9,0.82,0.88,0.75,0.68,0.70,0.58,0.55,0.42,0.38,0.30,0.22,0.15,0.10,0.05]
-        var p = Path()
-        let n = pts.count
-        let w = rect.width; let h = rect.height
-        p.move(to: CGPoint(x:0, y: h * pts[0]))
-        for i in 1..<n {
-            let x = w * CGFloat(i) / CGFloat(n-1)
-            p.addLine(to: CGPoint(x:x, y: h * pts[i]))
-        }
-        return p
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SCREEN 6 — PREMIUM COMPLETION
-// AVEN text hero + gradient ring + sparkles
-// ══════════════════════════════════════════════════════════════════════════════
-
-struct OBReadyScreen: View {
-    let onComplete: () -> Void
-    @State private var on = false
-    @State private var ringOn = false
-    @State private var glow = false
-    @State private var pressing = false
-    @State private var sparkA: [Double] = Array(repeating:0, count:8)
-    @State private var sparkTask: Task<Void,Never>? = nil
-
-    private let positions: [(CGFloat,CGFloat)] = [
-        (0,-110),(78,-78),(110,0),(78,78),(0,110),(-78,78),(-110,0),(-78,-78)
-    ]
-
-    var body: some View {
-        VStack(spacing:0) {
-            Spacer()
-            ZStack {
-                // Glow orbs
-                GlowOrb(color:Color(hex:"#9B5CFF"),size:240,opacity: glow ? 0.30 : 0.05)
-                    .animation(.easeInOut(duration:2.0).repeatForever(autoreverses:true), value:glow)
-
-                // Thin gradient ring
-                Circle()
-                    .trim(from:0, to: ringOn ? 1 : 0)
-                    .stroke(LinearGradient(colors:[Color(hex:"#9B5CFF"),Color(hex:"#4F8FFF")],
-                                           startPoint:.topLeading,endPoint:.bottomTrailing),
-                            style:StrokeStyle(lineWidth:2,lineCap:.round))
-                    .frame(width:160,height:160)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeOut(duration:1.0).delay(0.2), value:ringOn)
-                    .shadow(color:Color(hex:"#9B5CFF").opacity(0.4),radius:6)
-
-                // AVEN text hero
-                VStack(spacing:6) {
+                    Image("AVENMark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 44, height: 40)
                     Text("AVEN")
-                        .font(.system(size:60,weight:.black,design:.rounded))
-                        .foregroundStyle(LinearGradient(colors:[Color(hex:"#B07AFF"),Color(hex:"#4F8FFF")],
-                                                       startPoint:.topLeading,endPoint:.bottomTrailing))
-                        .shadow(color:Color(hex:"#9B5CFF").opacity(0.7),radius:16)
-                    Text("100 / 100").font(.system(size:13,weight:.bold)).foregroundColor(Color(hex:"#9B5CFF"))
+                        .font(.system(size: 16, weight: .medium))
+                        .tracking(6)
+                        .foregroundColor(isDark ? .white : AVENColor.textPrimary)
+                    Spacer()
+                    Circle()
+                        .fill(AVENColor.accentPurple)
+                        .frame(width: 7, height: 7)
                 }
-                .scaleEffect(on ? 1 : 0.65).opacity(on ? 1 : 0)
-                .animation(.spring(response:0.6,dampingFraction:0.65).delay(0.1), value:on)
 
-                // Orbit sparkles
-                ForEach(0..<positions.count, id:\.self) { i in
-                    Image(systemName: i%2==0 ? "sparkle" : "star.fill")
-                        .font(.system(size:i%3==0 ? 11 : 8))
-                        .foregroundColor(i%2==0 ? Color(hex:"#9B5CFF") : Color(hex:"#4F8FFF"))
-                        .opacity(sparkA[i])
-                        .offset(x:positions[i].0, y:positions[i].1)
-                }
-            }
-            .frame(width:280,height:280)
-
-            VStack(spacing:14) {
-                Text("Bereit loszulegen?")
-                    .font(.system(size:28,weight:.bold,design:.rounded)).foregroundColor(.white)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 14)
-                    .animation(.easeOut(duration:0.5).delay(0.35), value:on)
-                Text("Dein nächster Schritt beginnt jetzt.\nStarte deine erste Analyse und verbessere dein Profil Schritt für Schritt.")
-                    .font(.system(size:15)).foregroundColor(Color(hex:"#8E8EA0"))
-                    .multilineTextAlignment(.center).lineSpacing(4).padding(.horizontal,32)
-                    .opacity(on ? 1 : 0).offset(y: on ? 0 : 8)
-                    .animation(.easeOut(duration:0.5).delay(0.5), value:on)
-            }
-            Spacer().frame(height:24)
-
-            // Enhanced CTA
-            Button {
-                pressing = false
-                onComplete()
-            } label: {
-                HStack(spacing:8) {
-                    Image(systemName:"sparkles").font(.system(size:15,weight:.semibold))
-                    Text("AVEN starten").font(.system(size:18,weight:.bold))
-                    Image(systemName:"arrow.right")
-                        .font(.system(size:15,weight:.semibold))
-                        .offset(x: pressing ? 3 : 0)
-                        .animation(.spring(response:0.3), value:pressing)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth:.infinity).padding(.vertical,18)
-                .background(LinearGradient(colors:[Color(hex:"#7B4FFF"),Color(hex:"#4F8FFF")],
-                                           startPoint:.leading,endPoint:.trailing))
-                .clipShape(RoundedRectangle(cornerRadius:16))
-                .shadow(color:Color(hex:"#7B4FFF").opacity(0.55),radius:18,y:5)
-                .scaleEffect(pressing ? 0.96 : 1.0)
-                .animation(.spring(response:0.25), value:pressing)
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal,24)
-            .simultaneousGesture(DragGesture(minimumDistance:0)
-                .onChanged { _ in pressing=true }
-                .onEnded   { _ in pressing=false })
-            .opacity(on ? 1 : 0).animation(.easeOut(duration:0.4).delay(0.65), value:on)
-
-            Spacer().frame(height:44)
-        }
-        .onAppear {
-            on=true; ringOn=true
-            DispatchQueue.main.asyncAfter(deadline:.now()+0.3) { glow=true }
-            sparkTask = Task {
-                for i in 0..<positions.count {
-                    try? await Task.sleep(nanoseconds: UInt64((0.4+Double(i)*0.09)*1e9))
-                    guard !Task.isCancelled else { return }
-                    withAnimation(.easeIn(duration:0.3)){ sparkA[i] = Double.random(in:0.5...1.0) }
-                }
-                while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 1_400_000_000)
-                    guard !Task.isCancelled else { return }
-                    for i in 0..<sparkA.count {
-                        withAnimation(.easeInOut(duration:0.9)){ sparkA[i]=Double.random(in:0.15...0.85) }
+                HStack(spacing: 8) {
+                    ForEach(["Analyse", "Plan", "Wachstum"], id: \.self) { item in
+                        Text(item)
+                            .font(AVENFont.body(10, weight: .semibold))
+                            .foregroundColor(AVENColor.accentPurple)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(isDark ? Color.white.opacity(0.06) : AVENColor.backgroundCard)
+                            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                     }
                 }
             }
-        }
-        .onDisappear {
-            on=false; ringOn=false; glow=false; pressing=false
-            sparkTask?.cancel(); sparkTask=nil; sparkA=Array(repeating:0,count:8)
+            .padding(15)
         }
     }
 }
 
-#Preview {
-    AVENOnboardingView(onComplete: {})
-        .preferredColorScheme(.dark)
+private struct OBInfoLine: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(AVENColor.accentPurple)
+                .padding(.top, 2)
+            Text(text)
+                .font(AVENFont.body(11))
+                .foregroundColor(AVENColor.textSecondary)
+                .lineSpacing(3)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 4)
+    }
 }

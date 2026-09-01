@@ -1,24 +1,23 @@
 import SwiftUI
 
 // ─── RootView ─────────────────────────────────────────────────────────────────
-//
-// Layout fix: Instead of ZStack + ignoresSafeArea(bottom) which caused content
-// to slide under the tab bar, we use safeAreaInset(edge: .bottom) so SwiftUI
-// automatically reserves space for the tab bar. Each tab view's ScrollView
-// then knows its bottom inset and content doesn't disappear behind the bar.
 
 struct RootView: View {
     @EnvironmentObject private var container: AppContainer
-    @AppStorage("aven.hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("aven.hasCompletedOnboarding.v2") private var hasCompletedOnboarding = false
 
     var body: some View {
-        if !hasCompletedOnboarding {
-            AVENOnboardingView {
-                hasCompletedOnboarding = true
+        Group {
+            if hasCompletedOnboarding {
+                mainApp
+            } else {
+                AVENOnboardingView {
+                    hasCompletedOnboarding = true
+                }
+                .transition(.opacity)
             }
-        } else {
-            mainApp
         }
+        .animation(.easeInOut(duration: 0.28), value: hasCompletedOnboarding)
     }
 
     private var mainApp: some View {
@@ -33,7 +32,6 @@ struct RootView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: container.selectedTab)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // safeAreaInset reserves tab-bar height so scroll content is never hidden
         .safeAreaInset(edge: .bottom, spacing: 0) {
             AVENTabBar(
                 selectedTab: $container.selectedTab,
@@ -48,12 +46,8 @@ struct RootView: View {
             )
             .environmentObject(container)
         }
-        .sheet(isPresented: $container.showNewScan) {
-            NewScanSheet()
-        }
-        .sheet(isPresented: $container.showAIVideo) {
-            AIVideoCreatorView()
-        }
+        .sheet(isPresented: $container.showNewScan) { NewScanSheet() }
+        .sheet(isPresented: $container.showAIVideo) { AIVideoCreatorView() }
         .sheet(isPresented: $container.showTikTokAccount) {
             TikTokAccountView(onNewAnalysis: {
                 container.showTikTokAccount = false
@@ -62,10 +56,8 @@ struct RootView: View {
                 }
             })
         }
-    }  // end mainApp
+    }
 }
-
-// ─── Tab bar ──────────────────────────────────────────────────────────────────
 
 private struct AVENTabBar: View {
     @Binding var selectedTab: AppTab
@@ -86,7 +78,7 @@ private struct AVENTabBar: View {
                 .overlay(
                     Rectangle()
                         .frame(height: 0.5)
-                        .foregroundColor(Color(hex: "#0D0E1A").opacity(0.08)),
+                        .foregroundColor(AVENColor.borderSubtle),
                     alignment: .top
                 )
                 .ignoresSafeArea(edges: .bottom)
@@ -95,8 +87,11 @@ private struct AVENTabBar: View {
 }
 
 private struct TabBarItem: View {
-    let tab: AppTab; let icon: String; let label: String
+    let tab: AppTab
+    let icon: String
+    let label: String
     @Binding var selected: AppTab
+
     private var isSelected: Bool { selected == tab }
 
     var body: some View {
@@ -121,13 +116,16 @@ private struct TabBarItem: View {
 
 private struct CreateButton: View {
     let action: () -> Void
+
     var body: some View {
         Button(action: action) {
             ZStack {
                 Circle()
                     .fill(LinearGradient(
                         colors: [AVENColor.accentGradientStart, AVENColor.accentGradientEnd],
-                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
                     .frame(width: 44, height: 44)
                     .shadow(color: AVENColor.accentPurple.opacity(0.15), radius: 5, y: 2)
                 Image(systemName: "plus")

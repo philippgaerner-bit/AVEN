@@ -239,3 +239,156 @@ struct TikTokIconView: View {
         }
     }
 }
+
+// ─── Premium AVEN flask ──────────────────────────────────────────────────────
+// Pure SwiftUI vector artwork. It deliberately contains no raster background,
+// so it stays clean on both light and dark cards.
+
+struct AVENFlaskShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let h = rect.height
+        var p = Path()
+        p.move(to: CGPoint(x: 0.40 * w, y: 0.08 * h))
+        p.addLine(to: CGPoint(x: 0.60 * w, y: 0.08 * h))
+        p.addLine(to: CGPoint(x: 0.60 * w, y: 0.34 * h))
+        p.addCurve(
+            to: CGPoint(x: 0.82 * w, y: 0.84 * h),
+            control1: CGPoint(x: 0.60 * w, y: 0.48 * h),
+            control2: CGPoint(x: 0.75 * w, y: 0.69 * h)
+        )
+        p.addCurve(
+            to: CGPoint(x: 0.72 * w, y: 0.93 * h),
+            control1: CGPoint(x: 0.86 * w, y: 0.90 * h),
+            control2: CGPoint(x: 0.81 * w, y: 0.93 * h)
+        )
+        p.addLine(to: CGPoint(x: 0.28 * w, y: 0.93 * h))
+        p.addCurve(
+            to: CGPoint(x: 0.18 * w, y: 0.84 * h),
+            control1: CGPoint(x: 0.19 * w, y: 0.93 * h),
+            control2: CGPoint(x: 0.14 * w, y: 0.90 * h)
+        )
+        p.addCurve(
+            to: CGPoint(x: 0.40 * w, y: 0.34 * h),
+            control1: CGPoint(x: 0.25 * w, y: 0.69 * h),
+            control2: CGPoint(x: 0.40 * w, y: 0.48 * h)
+        )
+        p.closeSubpath()
+        return p
+    }
+}
+
+struct AVENFlaskView: View {
+    var animated: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var float = false
+    @State private var shimmer = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let size = geo.size
+            ZStack {
+                AVENFlaskShape()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.055 : 0.18),
+                                AVENColor.accentPurple.opacity(0.045),
+                                AVENColor.accentBlue.opacity(0.035)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                AVENFlaskShape()
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.72 : 0.92),
+                                AVENColor.accentPurple.opacity(0.90),
+                                AVENColor.accentBlue.opacity(0.78)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: max(1.4, size.width * 0.018), lineCap: .round, lineJoin: .round)
+                    )
+
+                // Liquid is clipped to the glass shape, so there can never be a
+                // rectangular or white bitmap edge around the flask.
+                LinearGradient(
+                    colors: [
+                        AVENColor.accentPurple.opacity(colorScheme == .dark ? 0.84 : 0.72),
+                        Color(hex: "#6F45FF").opacity(0.82),
+                        AVENColor.accentBlue.opacity(0.72)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: size.height * 0.35)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .offset(y: size.height * 0.025)
+                .clipShape(AVENFlaskShape())
+
+                // Liquid surface
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.70), AVENColor.accentPurple.opacity(0.95), AVENColor.accentBlue.opacity(0.55)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: size.width * 0.47, height: max(2, size.height * 0.018))
+                    .offset(y: size.height * 0.22)
+                    .opacity(0.88)
+
+                // Glass highlight
+                RoundedRectangle(cornerRadius: size.width * 0.035, style: .continuous)
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.30 : 0.55))
+                    .frame(width: size.width * 0.055, height: size.height * 0.39)
+                    .rotationEffect(.degrees(8))
+                    .offset(x: -size.width * 0.11, y: -size.height * 0.12)
+                    .blur(radius: 0.25)
+
+                bubble(size: size.width * 0.065, x: 0.12, y: 0.29, delay: 0)
+                bubble(size: size.width * 0.045, x: -0.10, y: 0.37, delay: 0.18)
+                bubble(size: size.width * 0.030, x: 0.05, y: 0.17, delay: 0.34)
+
+                // Tiny moving glint; subtle enough for premium UI.
+                Circle()
+                    .fill(Color.white.opacity(0.85))
+                    .frame(width: max(3, size.width * 0.035), height: max(3, size.width * 0.035))
+                    .blur(radius: 0.6)
+                    .offset(x: size.width * 0.16, y: -size.height * 0.18)
+                    .opacity(shimmer ? 0.95 : 0.28)
+            }
+            .shadow(color: AVENColor.accentPurple.opacity(colorScheme == .dark ? 0.22 : 0.14), radius: size.width * 0.08, y: size.height * 0.035)
+            .offset(y: animated && float && !reduceMotion ? -3 : 2)
+            .scaleEffect(animated && float && !reduceMotion ? 1.018 : 1)
+            .onAppear {
+                guard animated, !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 2.1).repeatForever(autoreverses: true)) { float = true }
+                withAnimation(.easeInOut(duration: 1.35).repeatForever(autoreverses: true)) { shimmer = true }
+            }
+        }
+        .aspectRatio(0.92, contentMode: .fit)
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func bubble(size: CGFloat, x: CGFloat, y: CGFloat, delay: Double) -> some View {
+        Circle()
+            .fill(Color.white.opacity(0.38))
+            .overlay(Circle().stroke(Color.white.opacity(0.36), lineWidth: 0.6))
+            .frame(width: size, height: size)
+            .offset(x: x * 120, y: y * 120)
+            .scaleEffect(animated && float && !reduceMotion ? 1.08 : 0.94)
+            .animation(
+                reduceMotion || !animated ? .none : .easeInOut(duration: 1.4).repeatForever(autoreverses: true).delay(delay),
+                value: float
+            )
+    }
+}

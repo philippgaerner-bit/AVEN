@@ -44,6 +44,8 @@ final class AppContainer: ObservableObject {
 
     func setConnectedTikTokAccount(_ account: ConnectedTikTokAccount) {
         connectedTikTokAccount = account
+        AVENXPStore.syncFollowerMilestones(followers: account.followers)
+        _ = AVENGrowthMissionStore.sync(account: account)
     }
 
     func disconnectTikTok() {
@@ -67,6 +69,8 @@ final class AppContainer: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: tikTokAccountKey),
            let account = try? JSONDecoder().decode(ConnectedTikTokAccount.self, from: data) {
             self._connectedTikTokAccount = Published(initialValue: account)
+            AVENXPStore.syncFollowerMilestones(followers: account.followers)
+            _ = AVENGrowthMissionStore.sync(account: account)
         }
         scheduleSyncIfNeeded()
     }
@@ -109,6 +113,8 @@ final class AppContainer: ObservableObject {
                             videoCount:  stats.videos
                         )
                         connectedTikTokAccount = updated
+                        AVENXPStore.syncFollowerMilestones(followers: updated.followers)
+                        _ = AVENGrowthMissionStore.sync(account: updated)
                         // Trigger Analytics / Home refresh so UI shows new follower count
                         NotificationCenter.default.post(name: .analysisDidComplete, object: nil)
                     }

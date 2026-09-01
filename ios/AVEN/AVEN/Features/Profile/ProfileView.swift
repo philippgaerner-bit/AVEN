@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import AuthenticationServices
 
 // ─── ProfileView ──────────────────────────────────────────────────────────────
@@ -7,6 +8,7 @@ struct ProfileView: View {
     @StateObject private var vm = ProfileViewModel()
     @EnvironmentObject private var container: AppContainer
     @State private var appeared = false
+    @State private var progressRefreshID = UUID()
 
     var body: some View {
         ZStack {
@@ -25,6 +27,16 @@ struct ProfileView: View {
                     // Account card
                     ProfileAccountCard(vm: vm)
                         .cardAppear(delay: 0.06)
+
+                    ProfileGoalCard()
+                        .environmentObject(container)
+                        .id(progressRefreshID)
+                        .cardAppear(delay: 0.085)
+
+                    ProfileProgressCard()
+                        .environmentObject(container)
+                        .id(progressRefreshID)
+                        .cardAppear(delay: 0.10)
 
                     // Connected accounts
                     ProfileSection(title: "Verbundene Konten") {
@@ -74,7 +86,12 @@ struct ProfileView: View {
                 .padding(.horizontal, AVENSpacing.md)
             }
         }
-        .onAppear { withAnimation { appeared = true } }
+        .onAppear {
+            progressRefreshID = UUID()
+            withAnimation { appeared = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .goalDidUpdate)) { _ in progressRefreshID = UUID() }
+        .onReceive(NotificationCenter.default.publisher(for: .xpDidUpdate)) { _ in progressRefreshID = UUID() }
         .sheet(isPresented: $vm.showPaywall)         { PaywallView() }
         .confirmationDialog("Account wirklich löschen?",
                             isPresented: $vm.showDeleteConfirm,
@@ -181,6 +198,230 @@ private struct ProfileAccountCard: View {
         if n >= 1_000_000 { return String(format: "%.1fM", Double(n)/1_000_000) }
         if n >= 1_000     { return String(format: "%.1fK", Double(n)/1_000) }
         return "\(n)"
+    }
+}
+
+
+// ─── Goal + XP progress ──────────────────────────────────────────────────────
+
+private struct ProfileGoalCard: View {
+    @EnvironmentObject private var container: AppContainer
+
+    private var goal: AVENUserGrowthGoal? { AVENUserGoalStore.current }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("DEIN ZIEL")
+                    .font(AVENFont.body(11, weight: .semibold))
+                    .foregroundColor(AVENColor.textMuted)
+                Spacer()
+                Image(systemName: "target")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(AVENColor.accentPurple)
+            }
+
+            AVENCard(accentBorder: goal != nil) {
+                if let goal {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 11) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .fill(AVENColor.accentPurple.opacity(0.10))
+                                    .frame(width: 44, height: 44)
+                                Image(systemName: goal.icon)
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(AVENColor.accentPurple)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(goal.title)
+                                    .font(AVENFont.body(16, weight: .semibold))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                Text(goal.deadline.isEmpty ? "Persönliches Wachstumsziel" : goal.deadline)
+                                    .font(AVENFont.body(11))
+                                    .foregroundColor(AVENColor.textSecondary)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 1) {
+                                Text(goal.target)
+                                    .font(AVENFont.display(18))
+                                    .foregroundColor(AVENColor.accentPurple)
+                                Text(goal.unit)
+                                    .font(AVENFont.body(9.5))
+                                    .foregroundColor(AVENColor.textMuted)
+                            }
+                        }
+
+                        if let progress = progressData(for: goal) {
+                            VStack(spacing: 6) {
+                                HStack {
+                                    Text("Fortschritt")
+                                        .font(AVENFont.body(10.5, weight: .semibold))
+                                        .foregroundColor(AVENColor.textMuted)
+                                    Spacer()
+                                    Text("\(progress.currentLabel) / \(goal.target)")
+                                        .font(AVENFont.body(10.5, weight: .semibold))
+                                        .foregroundColor(AVENColor.textSecondary)
+                                }
+                                GeometryReader { geo in
+                                    ZStack(alignment: .leading) {
+                                        Capsule().fill(AVENColor.backgroundSecondary)
+                                        Capsule()
+                                            .fill(LinearGradient(colors: [AVENColor.accentPurple, AVENColor.accentBlue], startPoint: .leading, endPoint: .trailing))
+                                            .frame(width: geo.size.width * progress.ratio)
+                                    }
+                                }
+                                .frame(height: 7)
+                            }
+                        } else {
+                            HStack(spacing: 7) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Text("Fortschritt wird mit deinen nächsten echten Account-Daten aktualisiert.")
+                            }
+                            .font(AVENFont.body(10.5))
+                            .foregroundColor(AVENColor.textMuted)
+                        }
+                    }
+                } else {
+                    HStack(spacing: 11) {
+                        Image(systemName: "target")
+                            .font(.system(size: 20))
+                            .foregroundColor(AVENColor.accentPurple)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Noch kein Ziel gesetzt")
+                                .font(AVENFont.body(14, weight: .semibold))
+                                .foregroundColor(AVENColor.textPrimary)
+                            Text("Setze über den + Button dein erstes Wachstumsziel.")
+                                .font(AVENFont.body(11))
+                                .foregroundColor(AVENColor.textSecondary)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    private func progressData(for goal: AVENUserGrowthGoal) -> (ratio: CGFloat, currentLabel: String)? {
+        func number(_ value: String) -> Double? {
+            let cleaned = value.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: ".")
+            return Double(cleaned.filter { $0.isNumber || $0 == "." })
+        }
+        guard let target = number(goal.target), target > 0 else { return nil }
+        let current: Double?
+        switch goal.type.lowercased() {
+        case "follower", "followers": current = container.connectedTikTokAccount.map { Double($0.followers) } ?? number(goal.current)
+        case "likes": current = container.connectedTikTokAccount.map { Double($0.likes) } ?? number(goal.current)
+        case "aven score", "professional": current = Double(AVENAnalysisStore.currentScore)
+        default: current = number(goal.current)
+        }
+        guard let current else { return nil }
+        let ratio = CGFloat(min(1, max(0, current / target)))
+        let label = current >= 1000 ? String(format: "%.1fK", current / 1000) : String(Int(current))
+        return (ratio, label)
+    }
+}
+
+private struct ProfileProgressCard: View {
+    @EnvironmentObject private var container: AppContainer
+    private var totalXP: Int { AVENXPStore.totalXP }
+    private var level: Int { AVENXPStore.level }
+    private var milestoneWindow: [AVENXPMilestone] {
+        let list = AVENXPStore.milestones
+        if let next = list.firstIndex(where: { totalXP < $0.xp }) {
+            let start = max(0, next - 1)
+            return Array(list[start..<min(list.count, start + 3)])
+        }
+        return Array(list.suffix(3))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("DEIN FORTSCHRITT")
+                    .font(AVENFont.body(11, weight: .semibold))
+                    .foregroundColor(AVENColor.textMuted)
+                Spacer()
+                Text("Level \(level)")
+                    .font(AVENFont.body(10.5, weight: .bold))
+                    .foregroundColor(AVENColor.accentPurple)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(AVENColor.accentPurple.opacity(0.09))
+                    .clipShape(Capsule())
+            }
+
+            AVENCard {
+                VStack(alignment: .leading, spacing: 13) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("\(totalXP)")
+                            .font(AVENFont.display(30))
+                            .foregroundColor(AVENColor.textPrimary)
+                        Text("XP")
+                            .font(AVENFont.body(13, weight: .semibold))
+                            .foregroundColor(AVENColor.accentPurple)
+                        Spacer()
+                        Text("Noch \(AVENXPStore.xpToNextLevel) XP bis Level \(level + 1)")
+                            .font(AVENFont.body(10))
+                            .foregroundColor(AVENColor.textMuted)
+                    }
+
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(AVENColor.backgroundSecondary)
+                            Capsule()
+                                .fill(LinearGradient(colors: [AVENColor.accentPurple, AVENColor.accentBlue], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: geo.size.width * CGFloat(AVENXPStore.levelProgress))
+                        }
+                    }
+                    .frame(height: 8)
+
+                    Text("Meilensteine")
+                        .font(AVENFont.body(12, weight: .semibold))
+                        .foregroundColor(AVENColor.textPrimary)
+
+                    HStack(spacing: 8) {
+                        ForEach(milestoneWindow) { milestone in
+                            let unlocked = totalXP >= milestone.xp
+                            VStack(spacing: 6) {
+                                ZStack {
+                                    Circle()
+                                        .fill(unlocked ? AVENColor.accentPurple.opacity(0.14) : AVENColor.backgroundSecondary)
+                                        .frame(width: 34, height: 34)
+                                    Image(systemName: unlocked ? "checkmark" : milestone.icon)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(unlocked ? AVENColor.accentPurple : AVENColor.textMuted)
+                                }
+                                Text("\(milestone.xp) XP")
+                                    .font(AVENFont.body(9.5, weight: .semibold))
+                                    .foregroundColor(unlocked ? AVENColor.textPrimary : AVENColor.textMuted)
+                                Text(milestone.title)
+                                    .font(AVENFont.body(8.5))
+                                    .foregroundColor(AVENColor.textMuted)
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+
+                    if let account = container.connectedTikTokAccount,
+                       let next = AVENXPStore.nextFollowerMilestone(after: account.followers) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "person.2.fill")
+                                .foregroundColor(AVENColor.accentPurple)
+                            Text("Nächster Follower-Meilenstein")
+                                .font(AVENFont.body(10.5, weight: .semibold))
+                                .foregroundColor(AVENColor.textSecondary)
+                            Spacer()
+                            Text("\(next.followers) · +\(next.rewardXP) XP")
+                                .font(AVENFont.body(10.5, weight: .semibold))
+                                .foregroundColor(AVENColor.accentPurple)
+                        }
+                        .padding(.top, 2)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -456,12 +697,43 @@ private struct NotificationsSettingsSheet: View {
 
 private struct AppSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("aven.settings.haptic")  private var hapticOn   = true
-    @AppStorage("aven.settings.reduced") private var reducedUI  = false
+    @AppStorage("aven.settings.haptic") private var hapticOn = true
+    @AppStorage("aven.settings.reduced") private var reducedUI = false
+    @AppStorage("aven.appearance") private var appearanceRaw = AVENAppearance.light.rawValue
+    @AppStorage("aven.hasCompletedOnboarding.v2") private var onboardingComplete = true
 
     var body: some View {
         SheetChrome(title: "Einstellungen", icon: "gear") {
             VStack(spacing: AVENSpacing.sm) {
+                AVENCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Darstellung")
+                                    .font(AVENFont.body(14, weight: .semibold))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                Text("Wähle Hell, Dunkel oder die Systemeinstellung.")
+                                    .font(AVENFont.body(11))
+                                    .foregroundColor(AVENColor.textSecondary)
+                            }
+                            Spacer()
+                        }
+
+                        HStack(spacing: 7) {
+                            ForEach(AVENAppearance.allCases) { option in
+                                SettingsAppearanceButton(
+                                    option: option,
+                                    selected: appearanceRaw == option.rawValue
+                                ) {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        appearanceRaw = option.rawValue
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 AVENCard {
                     VStack(spacing: 0) {
                         ToggleRow(label: "Haptisches Feedback", sublabel: "Vibration bei Aktionen", isOn: $hapticOn)
@@ -469,6 +741,61 @@ private struct AppSettingsSheet: View {
                         ToggleRow(label: "Animationen reduzieren", sublabel: "Weniger Bewegungseffekte", isOn: $reducedUI)
                     }
                 }
+
+                AVENCard {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(aiStatusColor.opacity(0.11))
+                                .frame(width: 38, height: 38)
+                            Image(systemName: aiStatusIcon)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(aiStatusColor)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("AVEN AI")
+                                .font(AVENFont.body(14, weight: .semibold))
+                                .foregroundColor(AVENColor.textPrimary)
+                            Text(aiStatusText)
+                                .font(AVENFont.body(11))
+                                .foregroundColor(AVENColor.textSecondary)
+                                .lineLimit(2)
+                        }
+                        Spacer()
+                    }
+                }
+
+                AVENCard {
+                    Button {
+                        onboardingComplete = false
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(AVENColor.accentPurple.opacity(0.10))
+                                    .frame(width: 38, height: 38)
+                                Image(systemName: "sparkles.rectangle.stack")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(AVENColor.accentPurple)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Tutorial erneut ansehen")
+                                    .font(AVENFont.body(14, weight: .semibold))
+                                    .foregroundColor(AVENColor.textPrimary)
+                                Text("Öffnet das AVEN-Onboarding beim Schließen.")
+                                    .font(AVENFont.body(11))
+                                    .foregroundColor(AVENColor.textSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(AVENColor.textMuted)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 AVENCard {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Version").font(AVENFont.body(14)).foregroundColor(AVENColor.textPrimary)
@@ -477,6 +804,59 @@ private struct AppSettingsSheet: View {
                 }
             }
         }
+    }
+
+    private var aiStatusIcon: String {
+        if !AVENBackendDiagnostics.lastError.isEmpty { return "exclamationmark.triangle.fill" }
+        if AVENBackendDiagnostics.lastSuccess != nil { return "checkmark.circle.fill" }
+        return "bolt.horizontal.circle"
+    }
+
+    private var aiStatusColor: Color {
+        if !AVENBackendDiagnostics.lastError.isEmpty { return AVENColor.textNegative }
+        if AVENBackendDiagnostics.lastSuccess != nil { return AVENColor.textPositive }
+        return AVENColor.accentPurple
+    }
+
+    private var aiStatusText: String {
+        if !AVENBackendDiagnostics.lastError.isEmpty {
+            return "Letzter Aufruf fehlgeschlagen: \(AVENBackendDiagnostics.lastError)"
+        }
+        if let date = AVENBackendDiagnostics.lastSuccess {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .none
+            formatter.timeStyle = .short
+            let endpoint = AVENBackendDiagnostics.lastEndpoint.isEmpty ? "API" : AVENBackendDiagnostics.lastEndpoint
+            return "Verbunden · \(endpoint) · \(formatter.string(from: date))"
+        }
+        return "Noch kein erfolgreicher AI-Aufruf. Starte z. B. eine Profilanalyse oder den AI Coach."
+    }
+}
+
+private struct SettingsAppearanceButton: View {
+    let option: AVENAppearance
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: option.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(option.title)
+                    .font(AVENFont.body(10, weight: .semibold))
+            }
+            .foregroundColor(selected ? .white : AVENColor.textSecondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(selected ? AVENColor.accentPurple : AVENColor.backgroundElevated)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(selected ? Color.clear : AVENColor.borderSubtle, lineWidth: 0.8)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

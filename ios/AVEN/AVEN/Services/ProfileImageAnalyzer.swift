@@ -80,7 +80,7 @@ final class ProfileImageAnalyzer {
         //
         // Rule: computeScore() is derived from the SAME dimension values.
         // This guarantees score detail and final score are always consistent.
-        // No artificial caps — a perfect profile can reach 100.
+        // 100 is reserved for a genuinely perfect profile. Any non-perfect analysis is capped at 99.
 
         // 1. Profil & Bio  (0–100)
         let bioDimScore: Int = {
@@ -140,7 +140,18 @@ final class ProfileImageAnalyzer {
             (structureScore, 0.10),
         ]
         let weightedScore = measurableDims.reduce(0.0) { $0 + Double($1.0) * $1.1 }
-        let score = max(20, min(100, Int(weightedScore.rounded())))
+        let rawScore = max(20, min(100, Int(weightedScore.rounded())))
+
+        // AVEN Challenge rule: 100/100 is not a rounded score. It is only
+        // awarded when every measurable profile dimension reaches the perfect
+        // standard. Otherwise even a mathematically rounded 100 stays at 99.
+        let isPerfectProfile = bioDimScore == 100 &&
+            ctaDimScore == 100 &&
+            nicheDimScore == 100 &&
+            brandingScore == 100 &&
+            structureScore == 100 &&
+            weaknesses.isEmpty
+        let score = isPerfectProfile ? 100 : min(99, rawScore)
 
         // ── Build dimension display objects ───────────────────────────────────
         let bioPos    = bioDimScore >= 80 ? (ctx.bioText.map { "Bio erkannt: \"\(String($0.prefix(40)))\"" } ?? "Bio vorhanden") : ""
@@ -209,7 +220,7 @@ final class ProfileImageAnalyzer {
         // Build recommended bio from real profile context
         let (recBio, bioIsStrong) = buildRecommendedBio(ctx: ctx)
 
-        // Every analysis scores 0–100 directly — no artificial cap
+        // 100/100 is reserved for the AVEN perfect-profile standard; otherwise max 99
         let finalRecord = AnalysisRecord(
             analysisScore: score,
             status:        scoreLabel(score),

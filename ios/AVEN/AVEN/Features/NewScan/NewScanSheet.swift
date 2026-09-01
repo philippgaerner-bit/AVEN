@@ -17,7 +17,7 @@ struct NewScanSheet: View {
                 case .imagePicked:
                     ImagePreviewView(vm: vm)
                 case .analyzing:
-                    AnalyzingView()
+                    AnalyzingView(vm: vm)
                 case .result(let result):
                     ResultView(result: result, vm: vm, dismiss: { dismiss() })
                 case .failed(let msg):
@@ -179,6 +179,7 @@ private struct ImagePreviewView: View {
 // ─── Analyzing ────────────────────────────────────────────────────────────────
 
 private struct AnalyzingView: View {
+    @ObservedObject var vm: ScanViewModel
     @State private var phase       = 0
     @State private var dotCount    = 0
     @State private var progress: CGFloat = 0
@@ -191,6 +192,11 @@ private struct AnalyzingView: View {
         "Feed wird geprüft",
         "Score wird berechnet",
     ]
+
+    private var statusText: String {
+        if case .building = vm.aiPlanState { return "AVEN AI erstellt deinen Plan" }
+        return steps[min(phase, steps.count - 1)]
+    }
 
     var body: some View {
         VStack(spacing: AVENSpacing.xl) {
@@ -245,7 +251,7 @@ private struct AnalyzingView: View {
                     .font(AVENFont.display(22))
                     .foregroundColor(AVENColor.textPrimary)
 
-                Text(steps[min(phase, steps.count - 1)] + String(repeating: ".", count: (dotCount % 3) + 1))
+                Text(statusText + String(repeating: ".", count: (dotCount % 3) + 1))
                     .font(AVENFont.body(15))
                     .foregroundColor(AVENColor.textSecondary)
                     .animation(.none, value: dotCount)
@@ -339,10 +345,17 @@ private struct ResultView: View {
                         .animation(.easeOut(duration: 0.5).delay(0.5), value: appeared)
                 }
 
-                // Empfohlene Bio — replaces Verbesserungsvorschläge
-                RecommendedBioCard(bio: result.recommendedBio, isStrong: result.bioIsStrong)
-                    .offset(y: appeared ? 0 : 20).opacity(appeared ? 1 : 0)
-                    .animation(.easeOut(duration: 0.5).delay(0.65), value: appeared)
+                // Only show a bio when AVEN has a clean, non-empty recommendation.
+                if !result.recommendedBio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    RecommendedBioCard(bio: result.recommendedBio, isStrong: result.bioIsStrong)
+                        .offset(y: appeared ? 0 : 20).opacity(appeared ? 1 : 0)
+                        .animation(.easeOut(duration: 0.5).delay(0.65), value: appeared)
+                }
+
+                AIPlanStatusCard(state: vm.aiPlanState)
+                    .offset(y: appeared ? 0 : 16)
+                    .opacity(appeared ? 1 : 0)
+                    .animation(.easeOut(duration: 0.45).delay(0.75), value: appeared)
 
                 // CTAs
                 VStack(spacing: AVENSpacing.sm) {
@@ -366,6 +379,64 @@ private struct ResultView: View {
             .padding(.horizontal, AVENSpacing.md)
         }
         .onAppear { withAnimation { appeared = true } }
+    }
+}
+
+private struct AIPlanStatusCard: View {
+    let state: AIPlanGenerationState
+
+    var body: some View {
+        AVENCard {
+            HStack(spacing: 11) {
+                ZStack {
+                    Circle()
+                        .fill(iconColor.opacity(0.11))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: icon)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(iconColor)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(AVENFont.body(13, weight: .semibold))
+                        .foregroundColor(AVENColor.textPrimary)
+                    Text(subtitle)
+                        .font(AVENFont.body(10.5))
+                        .foregroundColor(AVENColor.textSecondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var icon: String {
+        switch state {
+        case .ready: return "sparkles"
+        case .failed: return "exclamationmark.triangle"
+        case .building: return "wand.and.stars"
+        case .idle: return "checkmark.circle"
+        }
+    }
+    private var iconColor: Color {
+        if case .failed = state { return Color.orange }
+        return AVENColor.accentPurple
+    }
+    private var title: String {
+        switch state {
+        case .ready(let count): return "AVEN AI Plan erstellt · \(count) Aufgaben"
+        case .failed: return "Analyse fertig · KI-Verfeinerung nicht geladen"
+        case .building: return "AVEN AI erstellt deinen Plan"
+        case .idle: return "Analyse abgeschlossen"
+        }
+    }
+    private var subtitle: String {
+        switch state {
+        case .ready: return "Dein Aktionsplan wurde aus deinen echten Findings und deinem Ziel personalisiert."
+        case .failed(let message): return message
+        case .building: return "Deine Findings werden gerade priorisiert."
+        case .idle: return "Öffne den Aktionsplan für deine nächsten Schritte."
+        }
     }
 }
 
@@ -435,8 +506,16 @@ private struct DragHandle: View {
 
 // ─── ViewModel ────────────────────────────────────────────────────────────────
 
+enum AIPlanGenerationState: Equatable {
+    case idle
+    case building
+    case ready(Int)
+    case failed(String)
+}
+
 @MainActor
 final class ScanViewModel: ObservableObject {
+    @Published var aiPlanState: AIPlanGenerationState = .idle
     @Published var state: ScanFlowState = .idle
 
     func loadImage(from item: PhotosPickerItem?) async {
@@ -462,14 +541,75 @@ final class ScanViewModel: ObservableObject {
         // so the user sees all step labels before the result is revealed.
         async let analysisResult = ProfileImageAnalyzer().analyze(image: image)
         async let minimumDelay: Void = Task.sleep(nanoseconds: 4_000_000_000)
-        let result = await analysisResult
+        var result = await analysisResult
         try? await minimumDelay
+
+        // Vision/OCR supplies the evidence and score. AVEN AI then rewrites the
+        // findings into specific feedback and builds the personal action plan.
+        // If the AI request fails, the real local analysis remains available.
+        if let record = AVENAnalysisStore.load() {
+            aiPlanState = .building
+            do {
+                let account = Self.persistedTikTokAccount()
+                let review = try await AVENBackend.generateProfileReview(
+                    record: record,
+                    localResult: result,
+                    account: account
+                )
+
+                let refinedRecord = AnalysisRecord(
+                    analysisScore: record.analysisScore,
+                    status: record.status,
+                    strengths: review.strengths,
+                    weaknesses: review.weaknesses,
+                    dimensions: record.dimensions,
+                    taskIDs: review.tasks.map(\.id),
+                    platform: record.platform,
+                    timestamp: record.timestamp
+                )
+                AVENAnalysisStore.replaceCurrent(refinedRecord)
+                AVENAIActionPlanStore.save(tasks: review.tasks, for: refinedRecord)
+                _ = AVENGrowthMissionStore.ensure(account: account)
+
+                result = ScanAnalysisResult(
+                    score: result.score,
+                    status: result.status,
+                    strengths: review.strengths,
+                    weaknesses: review.weaknesses,
+                    suggestions: result.suggestions,
+                    platform: result.platform,
+                    recommendedBio: review.recommendedBio ?? "",
+                    bioIsStrong: review.recommendedBio == nil
+                )
+                aiPlanState = .ready(review.tasks.count)
+            } catch {
+                // Keep the evidence-based local score/findings, but never present a
+                // potentially garbled OCR-generated bio as an AI recommendation.
+                result = ScanAnalysisResult(
+                    score: result.score,
+                    status: result.status,
+                    strengths: result.strengths,
+                    weaknesses: result.weaknesses,
+                    suggestions: result.suggestions,
+                    platform: result.platform,
+                    recommendedBio: "",
+                    bioIsStrong: false
+                )
+                aiPlanState = .failed(error.localizedDescription)
+            }
+        }
 
         withAnimation { state = .result(result) }
     }
 
     func reset() {
+        aiPlanState = .idle
         withAnimation { state = .idle }
+    }
+
+    private static func persistedTikTokAccount() -> ConnectedTikTokAccount? {
+        guard let data = UserDefaults.standard.data(forKey: "aven.connectedTikTokAccount") else { return nil }
+        return try? JSONDecoder().decode(ConnectedTikTokAccount.self, from: data)
     }
 }
 
